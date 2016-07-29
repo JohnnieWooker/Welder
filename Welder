@@ -14,7 +14,7 @@ bl_info = {
     "name": "Welder",
     "author": "Łukasz Hoffmann",
     "version": (0, 1),
-	"location": "Object UI > Mocap tools",
+    "location": "Object UI > Mocap tools",
     "blender": (2, 76, 0),
     "description": "Generate weld along the odge of intersection of two objects",
     "warning": "",
