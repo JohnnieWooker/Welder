@@ -1,4 +1,4 @@
-'''
+﻿'''
 Copyright (C) 2016 Łukasz Hoffmann
 johnniewooker@gmail.com
 
@@ -10,32 +10,25 @@ johnniewooker@gmail.com
 '''
 
 
-bl_info = {
-    "name": "Welder",
-    "author": "Łukasz Hoffmann",
-    "version": (0, 1),
-    "location": "Object UI > Mocap tools",
-    "blender": (2, 76, 0),
-    "description": "Generate weld along the odge of intersection of two objects",
-    "warning": "",
-    "category": "Object"}
+
 
 import bpy
 import bmesh
 import mathutils
 import os 
 
- 
-class ToolsPanel(bpy.types.Panel):
-    bl_label = "Welder"
-    bl_space_type = "VIEW_3D"
-    bl_region_type = "TOOLS"
-    bl_category = "Welder"
- 
-    def draw(self, context):
-        self.layout.operator("weld.weld").obje = "Plane"
-        self.layout.operator("weld.weld").obje = "Plane.001"
-        self.layout.operator("rotate.rotate")
+bl_info = {
+    "name": "Welder",
+    "author": "Łukasz Hoffmann",
+    "version": (0,0, 3),
+    "location": "View 3D > Object Mode > Tool Shelf",
+    "blender": (2, 7, 9),
+    "description": "Generate weld along the odge of intersection of two objects",
+    "warning": "",
+    "category": "Object",
+	}
+
+
         
 class OBJECT_OT_RotateButton(bpy.types.Operator):
     bl_idname = "rotate.rotate"
@@ -45,8 +38,7 @@ class OBJECT_OT_RotateButton(bpy.types.Operator):
     def execute(self, context):  
         bpy.ops.curve.switch_direction()
         return {'FINISHED'} 
-    
-bpy.utils.register_module(__name__)        
+           
               
         
 class OBJECT_OT_HelloButton(bpy.types.Operator):
@@ -182,7 +174,10 @@ class OBJECT_OT_HelloButton(bpy.types.Operator):
         current_path = os.path.dirname(os.path.realpath(__file__))
         blendfile = os.path.join(current_path, "weld.blend")  #ustawic wlasna sciezke!
         section   = "\\Object\\"
-        object    = self.obje
+        if (self.obje==''):
+            object="Plane"
+        else:
+            object=self.obje
 
         filepath  = blendfile + section + object
         directory = blendfile + section
@@ -216,11 +211,34 @@ class OBJECT_OT_HelloButton(bpy.types.Operator):
         
         
         return {'FINISHED'}
-    
-bpy.utils.register_module(__name__)
-
+   
 def register():
-	bpy.utils.register_module(__name__)	
+    bpy.utils.register_class(OBJECT_OT_HelloButton)
+    bpy.utils.register_class(OBJECT_OT_RotateButton)
 
 def unregister():
-    bpy.utils.unregister_module(__name__)              
+    bpy.utils.unregister_class(OBJECT_OT_HelloButton)
+    bpy.utils.unregister_class(OBJECT_OT_RotateButton)
+
+register()
+
+class WelderToolsPanel(bpy.types.Panel):
+    bl_label = "Welder"
+    bl_idname = "OBJECT_Welder"
+    bl_space_type = "VIEW_3D"
+    bl_region_type = "TOOLS"
+    bl_category = "Welder"
+ 
+    def draw(self, context):
+        self.layout.operator("weld.weld").obje = "Plane"
+        self.layout.operator("weld.weld").obje = "Plane.001"
+        self.layout.operator("rotate.rotate")
+
+def register():
+	bpy.utils.register_class(WelderToolsPanel)	
+
+def unregister():
+    bpy.utils.unregister_class(WelderToolsPanel)              
+
+if __name__ == "__main__":
+    register()
