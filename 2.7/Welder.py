@@ -17,6 +17,8 @@ import bmesh
 import mathutils
 import os 
 from mathutils import Vector
+import bpy.utils.previews
+from bpy.props import StringProperty, EnumProperty
 
 bl_info = {
     "name": "Welder",
@@ -28,6 +30,8 @@ bl_info = {
     "warning": "",
     "category": "Object",
 	}
+
+preview_collections = {}
 
 class WeldTransformModal(bpy.types.Operator):
     bl_idname = "weld.translate"
@@ -248,8 +252,32 @@ class OBJECT_OT_WeldButton(bpy.types.Operator):
         #bpy.ops.object.mode_set(mode = 'EDIT') 
         
         return bpy.ops.weld.translate('INVOKE_DEFAULT')
+
+def generate_previews():
+    # We are accessing all of the information that we generated in the register function below
+    pcoll = preview_collections["thumbnail_previews"]
+    image_location = pcoll.images_location
+    VALID_EXTENSIONS = ('.png', '.jpg', '.jpeg')
+    
+    enum_items = []
+    
+    # Generate the thumbnails
+    for i, image in enumerate(os.listdir(image_location)):
+        if image.endswith(VALID_EXTENSIONS):
+            filepath = os.path.join(image_location, image)
+            thumb = pcoll.load(filepath, filepath, 'IMAGE')
+            enum_items.append((image, image, "", thumb.icon_id, i))
+            
+    return enum_items
    
 def register():
+    pcoll = bpy.utils.previews.new()
+    images_path = pcoll.images_location = os.path.join(os.path.dirname(__file__), "welder_images")
+    pcoll.images_location = bpy.path.abspath(images_path)
+    preview_collections["thumbnail_previews"] = pcoll
+    bpy.types.Scene.my_thumbnails = EnumProperty(
+    items=generate_previews(),
+    )
     bpy.utils.register_class(WeldTransformModal)
     bpy.utils.register_class(OBJECT_OT_WeldButton)
     bpy.utils.register_class(OBJECT_OT_RotateButton)
@@ -269,6 +297,8 @@ class WelderToolsPanel(bpy.types.Panel):
     bl_category = "Welder"
  
     def draw(self, context):
+        row=self.layout.row()
+        row.template_icon_view(context.scene, "my_thumbnails")
         self.layout.operator("weld.weld").obje = "Plane"
         self.layout.operator("weld.weld").obje = "Plane.001"
         self.layout.operator("weld.rotate")
