@@ -16,6 +16,7 @@ import bpy
 import bmesh
 import mathutils
 import os 
+from mathutils import Vector
 
 bl_info = {
     "name": "Welder",
@@ -28,27 +29,61 @@ bl_info = {
     "category": "Object",
 	}
 
-
+class WeldTransformModal(bpy.types.Operator):
+    bl_idname = "weld.translate"
+    bl_label = "Weld modal transform"
+    #def execute(self, context):
+    def modal(self, context, event):
+        if event.type == 'MOUSEMOVE':
+            if (self.phase==1):
+                self.offset = (self._initial_mouse - Vector((event.mouse_x, event.mouse_y, 0.0))) * 0.02
+                multiplificator=(self.offset).length
+                if(multiplificator<1):multiplificator=1            
+                self.OBJ_WELD.scale[0]=multiplificator
+                self.OBJ_WELD.scale[1]=multiplificator
+                self.OBJ_WELD.scale[2]=multiplificator
+                self.array=self.OBJ_WELD.modifiers["array"]
+                self.array.count=int(self.old_count/multiplificator)+1
+            if (self.phase==2):
+                self.offset = (self._initial_mouse - Vector((event.mouse_x, event.mouse_y, 0.0))) * 0.02
+                multiplificator=(self.offset).length
+                self.OBJ_WELD.rotation_euler[0]=multiplificator
+        elif event.type == 'LEFTMOUSE' and event.value in {'RELEASE'}:    
+            if (self.phase==2):
+                return {'FINISHED'}   
+            if (self.phase==1):
+                self.phase=2
+                self._initial_mouse = Vector((event.mouse_x, event.mouse_y, 0.0))
+                return {'RUNNING_MODAL'} 
+        elif event.type in {'RIGHTMOUSE', 'ESC'}:
+            return {'CANCELLED'}
+        return {'RUNNING_MODAL'}
+    def invoke(self, context, event):
+        self._initial_mouse = Vector((event.mouse_x, event.mouse_y, 0.0))
+        self.OBJ_WELD=bpy.context.selected_objects[0]
+        self.array=self.OBJ_WELD.modifiers["array"]
+        self.old_count=self.array.count
+        self.phase=1
+        if context.space_data.type == 'VIEW_3D':
+            context.window_manager.modal_handler_add(self)
+            return {'RUNNING_MODAL'}
+        else:
+            self.report({'WARNING'}, "Active space must be a View3d")
+            return {'CANCELLED'}        
         
 class OBJECT_OT_RotateButton(bpy.types.Operator):
-    bl_idname = "rotate.rotate"
+    bl_idname = "weld.rotate"
     bl_label = "Rotate weld"
     country = bpy.props.StringProperty()
  
     def execute(self, context):  
         bpy.ops.curve.switch_direction()
         return {'FINISHED'} 
-           
-              
         
-class OBJECT_OT_HelloButton(bpy.types.Operator):
+class OBJECT_OT_WeldButton(bpy.types.Operator):
     bl_idname = "weld.weld"    
     obje = bpy.props.StringProperty()   
     bl_label = "Weld"
-    
-
-    
- 
     def execute(self, context):
         
         def is_inside(p, obj):
@@ -58,7 +93,6 @@ class OBJECT_OT_HelloButton(bpy.types.Operator):
             v = p2.dot(normal)
             #print(v)
             return not(v < 0.0001)
-
         objects = bpy.data.objects
         bpy.ops.object.transform_apply(location=True, rotation=True, scale=True) 
         OBJ1=bpy.context.selected_objects[0]
@@ -172,7 +206,7 @@ class OBJECT_OT_HelloButton(bpy.types.Operator):
         bpy.ops.object.select_all()
 	
         current_path = os.path.dirname(os.path.realpath(__file__))
-        blendfile = os.path.join(current_path, "weld.blend")  #ustawic wlasna sciezke!
+        blendfile = os.path.join(current_path, "weld.blend")  #ustawic wlasna sciezke!        
         section   = "\\Object\\"
         if (self.obje==''):
             object="Plane"
@@ -192,32 +226,37 @@ class OBJECT_OT_HelloButton(bpy.types.Operator):
         OBJ_WELD.matrix_world=matrix
         array = OBJ_WELD.modifiers.new(type="ARRAY", name="array")
         array.use_merge_vertices=True
-        count=int(int(float(edge_length))*2)
+        array.use_relative_offset=False
+        array.use_constant_offset=True
+        array.merge_threshold=0.0001
+        #count=int(int(float(edge_length))*2)
+        count=int(float(edge_length)/0.04331)+1
         array.count=count
-        array.relative_offset_displace[0]=0.83
+        #array.relative_offset_displace[0]=0.83        
+        array.constant_offset_displace[0]=0.04331
         curve=OBJ_WELD.modifiers.new(type="CURVE", name="curve")
         curve.object=OBJ1
+        OBJ1.data.resolution_u=int(count/2)
         bpy.data.objects[OBJ_WELD.name].select=True
         bpy.context.scene.objects.active = OBJ1
         bpy.ops.object.modifier_apply(modifier='array')
         #bpy.ops.object.modifier_apply(modifier='curve')
         bpy.ops.object.select_all(action = 'DESELECT')
-        OBJ1.select = True        
+        OBJ_WELD.select = True
+        bpy.context.scene.objects.active=OBJ_WELD    
         #bpy.ops.object.delete()
-        bpy.ops.object.mode_set(mode = 'EDIT')     
-            
-                 
-
+        #bpy.ops.object.mode_set(mode = 'EDIT') 
         
-        
-        return {'FINISHED'}
+        return bpy.ops.weld.translate('INVOKE_DEFAULT')
    
 def register():
-    bpy.utils.register_class(OBJECT_OT_HelloButton)
+    bpy.utils.register_class(WeldTransformModal)
+    bpy.utils.register_class(OBJECT_OT_WeldButton)
     bpy.utils.register_class(OBJECT_OT_RotateButton)
 
 def unregister():
-    bpy.utils.unregister_class(OBJECT_OT_HelloButton)
+    bpy.utils.unregister_class(WeldTransformModal)
+    bpy.utils.unregister_class(OBJECT_OT_WeldButton)
     bpy.utils.unregister_class(OBJECT_OT_RotateButton)
 
 register()
@@ -232,7 +271,7 @@ class WelderToolsPanel(bpy.types.Panel):
     def draw(self, context):
         self.layout.operator("weld.weld").obje = "Plane"
         self.layout.operator("weld.weld").obje = "Plane.001"
-        self.layout.operator("rotate.rotate")
+        self.layout.operator("weld.rotate")
 
 def register():
 	bpy.utils.register_class(WelderToolsPanel)	
