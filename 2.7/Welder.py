@@ -74,6 +74,7 @@ class WeldTransformModal(bpy.types.Operator):
         else:
             self.report({'WARNING'}, "Active space must be a View3d")
             return {'CANCELLED'}        
+      
         
 class OBJECT_OT_RotateButton(bpy.types.Operator):
     bl_idname = "weld.rotate"
@@ -83,13 +84,22 @@ class OBJECT_OT_RotateButton(bpy.types.Operator):
     def execute(self, context):  
         bpy.ops.curve.switch_direction()
         return {'FINISHED'} 
+              
         
 class OBJECT_OT_WeldButton(bpy.types.Operator):
     bl_idname = "weld.weld"    
-    obje = bpy.props.StringProperty()   
+    #obje = bpy.props.StringProperty()  
+    
+    
     bl_label = "Weld"
+    
+    
     def execute(self, context):
-        
+        obje='' 
+        iconname=bpy.context.scene.my_thumbnails
+        if iconname=='icon_1.png': obje='Plane.001'
+        if iconname=='icon_2.png': obje='Plane'
+        if obje=='': return {'FINISHED'}
         def is_inside(p, obj):
             max_dist = 1.84467e+19
             found, point, normal, face = obj.closest_point_on_mesh(p, max_dist)
@@ -212,10 +222,10 @@ class OBJECT_OT_WeldButton(bpy.types.Operator):
         current_path = os.path.dirname(os.path.realpath(__file__))
         blendfile = os.path.join(current_path, "weld.blend")  #ustawic wlasna sciezke!        
         section   = "\\Object\\"
-        if (self.obje==''):
+        if (obje==''):
             object="Plane"
         else:
-            object=self.obje
+            object=obje
 
         filepath  = blendfile + section + object
         directory = blendfile + section
@@ -299,10 +309,9 @@ class WelderToolsPanel(bpy.types.Panel):
     def draw(self, context):
         row=self.layout.row()
         row.template_icon_view(context.scene, "my_thumbnails")
-        self.layout.operator("weld.weld").obje = "Plane"
-        self.layout.operator("weld.weld").obje = "Plane.001"
-        self.layout.operator("weld.rotate")
-
+        self.layout.operator("weld.weld")
+        #self.layout.operator("weld.rotate")
+    
 def register():
 	bpy.utils.register_class(WelderToolsPanel)	
 
