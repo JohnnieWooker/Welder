@@ -97,8 +97,9 @@ class OBJECT_OT_WeldButton(bpy.types.Operator):
     def execute(self, context):
         obje='' 
         iconname=bpy.context.scene.my_thumbnails
-        if iconname=='icon_1.png': obje='Plane.001'
-        if iconname=='icon_2.png': obje='Plane'
+        if iconname=='icon_1.png': obje='Weld_1'
+        if iconname=='icon_2.png': obje='Weld_2'
+        if iconname=='icon_3.png': obje='Weld_3'
         if obje=='': return {'FINISHED'}
         def is_inside(p, obj):
             max_dist = 1.84467e+19
@@ -223,7 +224,7 @@ class OBJECT_OT_WeldButton(bpy.types.Operator):
         blendfile = os.path.join(current_path, "weld.blend")  #ustawic wlasna sciezke!        
         section   = "\\Object\\"
         if (obje==''):
-            object="Plane"
+            object="Weld_1"
         else:
             object=obje
 
@@ -247,7 +248,9 @@ class OBJECT_OT_WeldButton(bpy.types.Operator):
         count=int(float(edge_length)/0.04331)+1
         array.count=count
         #array.relative_offset_displace[0]=0.83        
-        array.constant_offset_displace[0]=0.04331
+        offset=0.04331
+        if object=="Weld_3": offset=0.1
+        array.constant_offset_displace[0]=offset
         curve=OBJ_WELD.modifiers.new(type="CURVE", name="curve")
         curve.object=OBJ1
         OBJ1.data.resolution_u=int(count/2)
