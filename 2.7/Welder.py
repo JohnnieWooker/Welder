@@ -100,6 +100,8 @@ class OBJECT_OT_WeldButton(bpy.types.Operator):
         if iconname=='icon_1.png': obje='Weld_1'
         if iconname=='icon_2.png': obje='Weld_2'
         if iconname=='icon_3.png': obje='Weld_3'
+        if iconname=='icon_4.png': obje='Weld_4'
+        if iconname=='icon_5.png': obje='Weld_5'
         if obje=='': return {'FINISHED'}
         def is_inside(p, obj):
             max_dist = 1.84467e+19
