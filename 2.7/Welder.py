@@ -59,8 +59,19 @@ class WeldTransformModal(bpy.types.Operator):
                 self.phase=2
                 self._initial_mouse = Vector((event.mouse_x, event.mouse_y, 0.0))
                 return {'RUNNING_MODAL'} 
-        elif event.type in {'RIGHTMOUSE', 'ESC'}:
-            return {'CANCELLED'}
+        elif event.type in {'RIGHTMOUSE', 'ESC'} and event.value in {'RELEASE'}:
+            if (self.phase==2):
+                self.OBJ_WELD.rotation_euler[0]=0    
+                return {'CANCELLED'}
+            if (self.phase==1):
+                self.OBJ_WELD.scale[0]=1
+                self.OBJ_WELD.scale[1]=1
+                self.OBJ_WELD.scale[2]=1
+                self.array=self.OBJ_WELD.modifiers["array"]
+                self.array.count=self.old_count
+                self.phase=2
+                self._initial_mouse = Vector((event.mouse_x, event.mouse_y, 0.0))
+                return {'RUNNING_MODAL'}             
         return {'RUNNING_MODAL'}
     def invoke(self, context, event):
         self._initial_mouse = Vector((event.mouse_x, event.mouse_y, 0.0))
