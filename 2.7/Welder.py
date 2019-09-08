@@ -359,6 +359,9 @@ class OBJECT_OT_WeldButton(bpy.types.Operator):
         
         return bpy.ops.weld.translate('INVOKE_DEFAULT')
 
+def addprop(object):    
+    object["Weld"]="True"
+
 def CalculateCurveLength(curve):
     matrix=curve.matrix_world
     edge_length = 0
@@ -397,6 +400,7 @@ def MakeWeldFromCurve(OBJ1,edge_length,obje,matrix):
     print(filepath)    
     OBJ_WELD=bpy.context.selected_objects[0]
     OBJ_WELD.matrix_world=matrix
+    addprop(OBJ_WELD)
     array = OBJ_WELD.modifiers.new(type="ARRAY", name="array")
     array.use_merge_vertices=True
     array.use_relative_offset=False
