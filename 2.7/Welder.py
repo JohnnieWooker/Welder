@@ -20,7 +20,8 @@ import bpy.utils.previews
 from bpy.props import StringProperty, EnumProperty
 from bpy_extras.view3d_utils import (
     region_2d_to_vector_3d,
-    region_2d_to_origin_3d
+    region_2d_to_origin_3d,
+    region_2d_to_location_3d
 )
 
 
@@ -54,7 +55,8 @@ class WelderDrawOperator(bpy.types.Operator):
         elif event.type == 'MOUSEMOVE' and self.phase==0:
             if self.lmb:
                 if get_mouse_3d_on_mesh(self,event,context) is not None:
-                    self.mouse_path.append(get_mouse_3d_on_mesh(self,event,context))
+                    ishit,hit=get_mouse_3d_on_mesh(self,event,context)
+                    if (ishit): self.mouse_path.append(hit)
  
             #print("test")
 
@@ -130,12 +132,14 @@ class WelderDrawOperator(bpy.types.Operator):
         self.lmb = False
         self.initiated=False
         bpy.ops.object.select_all(action='DESELECT')
+        """
         if not context.active_object:
             self.report({'WARNING'}, "no object")
             return {'CANCELLED'}         
-        if context.area.type == 'VIEW_3D' and context.active_object.type=='MESH':
+        """
+        if context.area.type == 'VIEW_3D':
             
-            self.bvhtree = bvhtree_from_object(self,context, context.active_object)
+            #self.bvhtree = bvhtree_from_object(self,context, context.active_object)
             # the arguments we pass the the callback
             args = (self, context)
             # Add the region OpenGL drawing callback
@@ -448,14 +452,17 @@ def get_origin_and_direction(self,event,context):
     region=context.region
     region_3d=context.space_data.region_3d
     mouse_coord=(event.mouse_region_x,event.mouse_region_y)
+    #vector = region_2d_to_vector_3d(region, region_3d, mouse_coord)
     origin=region_2d_to_origin_3d(region,region_3d,mouse_coord)
-    direction=region_2d_to_vector_3d(region,region_3d,mouse_coord)
+    #direction=region_2d_to_location_3d(region, region_3d, mouse_coord, vector)    
+    direction=region_2d_to_vector_3d(region, region_3d, mouse_coord)  
     return origin,direction
 
 def get_mouse_3d_on_mesh(self,event,context):
     origin,direction=get_origin_and_direction(self,event,context)
-    self.hit,self.normal, *_ =self.bvhtree.ray_cast(origin,direction)
-    return self.hit
+    self.ishit,self.hit,self.normal, *_ =context.scene.ray_cast(origin,direction)
+    #print(self.ishit,self.hit)
+    return self.ishit,self.hit
 
 def bvhtree_from_object(self, context, object):
         bm = bmesh.new()
