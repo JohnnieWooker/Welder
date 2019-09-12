@@ -40,6 +40,9 @@ preview_collections = {}
 
 cyclic=True
 
+bpy.types.Scene.welddrawing=bpy.props.BoolProperty(
+        name="welddrawing", description="welddrawing", default=False)
+
 class WelderDrawOperator(bpy.types.Operator):
     bl_idname = "weld.draw"
     bl_label = "Draw"    
@@ -115,11 +118,12 @@ class WelderDrawOperator(bpy.types.Operator):
 
         elif event.type in {'ESC'} and self.phase==0:
             self.unregister_handlers(context)
+            bpy.context.scene.welddrawing=False
             return {'CANCELLED'}
 
         return {'PASS_THROUGH'}
 
-    def invoke(self, context, event):
+    def invoke(self, context, event):        
         self.phase=0
         self.obje='' 
         iconname=bpy.context.scene.my_thumbnails
@@ -138,7 +142,7 @@ class WelderDrawOperator(bpy.types.Operator):
             return {'CANCELLED'}         
         """
         if context.area.type == 'VIEW_3D':
-            
+            bpy.context.scene.welddrawing=True
             #self.bvhtree = bvhtree_from_object(self,context, context.active_object)
             # the arguments we pass the the callback
             args = (self, context)
@@ -181,6 +185,7 @@ class WeldTransformModal(bpy.types.Operator):
                 self.OBJ_WELD.rotation_euler[0]=multiplificator
         elif event.type == 'LEFTMOUSE' and event.value in {'RELEASE'}:    
             if (self.phase==2):
+                bpy.context.scene.welddrawing=False
                 return {'FINISHED'}   
             if (self.phase==1):
                 self.phase=2
@@ -189,6 +194,7 @@ class WeldTransformModal(bpy.types.Operator):
         elif event.type in {'RIGHTMOUSE', 'ESC'} and event.value in {'RELEASE'}:
             if (self.phase==2):
                 self.OBJ_WELD.rotation_euler[0]=0    
+                bpy.context.scene.welddrawing=False
                 return {'CANCELLED'}
             if (self.phase==1):
                 self.OBJ_WELD.scale[0]=1
@@ -207,10 +213,12 @@ class WeldTransformModal(bpy.types.Operator):
         self.old_count=self.array.count
         self.phase=1
         if context.space_data.type == 'VIEW_3D':
+            bpy.context.scene.welddrawing=True
             context.window_manager.modal_handler_add(self)
             return {'RUNNING_MODAL'}
         else:
             self.report({'WARNING'}, "Active space must be a View3d")
+            bpy.context.scene.welddrawing=False
             return {'CANCELLED'}        
       
         
@@ -518,8 +526,13 @@ class WelderToolsPanel(bpy.types.Panel):
     def draw(self, context):
         row=self.layout.row()
         row.template_icon_view(context.scene, "my_thumbnails")
-        self.layout.operator("weld.weld")
-        self.layout.operator("weld.draw")
+        row.enabled=not bpy.context.scene.welddrawing
+        row=self.layout.row()
+        row.operator("weld.weld")
+        row.enabled=not bpy.context.scene.welddrawing
+        row=self.layout.row()
+        row.operator("weld.draw")
+        row.enabled=not bpy.context.scene.welddrawing
     
 def register():
 	bpy.utils.register_class(WelderToolsPanel)	
