@@ -9,21 +9,27 @@ johnniewooker@gmail.com
 
 '''
 
-
-
-
 import bpy
+import bgl
+import blf
+import gpu
+from gpu_extras.batch import batch_for_shader
 import bmesh
 import mathutils
 import os 
 from mathutils import Vector
 import bpy.utils.previews
 from bpy.props import StringProperty, EnumProperty
+from bpy_extras.view3d_utils import (
+    region_2d_to_vector_3d,
+    region_2d_to_origin_3d,
+    region_2d_to_location_3d
+)
 
 bl_info = {
     "name": "Welder",
     "author": "Łukasz Hoffmann",
-    "version": (0,0, 3),
+    "version": (0,0, 4),
     "location": "View 3D > Object Mode > Tool Shelf",
     "blender": (2, 80, 0),
     "description": "Generate weld along the odge of intersection of two objects",
@@ -48,6 +54,9 @@ def generate_previews():
             
     return enum_items 
 
+bpy.types.Scene.welddrawing=bpy.props.BoolProperty(
+    name="welddrawing", description="welddrawing", default=False)
+cyclic=True
 preview_collections = {}
 pcoll = bpy.utils.previews.new()
 images_path = pcoll.images_location = os.path.join(os.path.dirname(__file__), "welder_images")
@@ -56,6 +65,128 @@ preview_collections["thumbnail_previews"] = pcoll
 bpy.types.Scene.my_thumbnails = EnumProperty(
     items=generate_previews(),
     )
+
+class OBJECT_OT_WelderDrawOperator(bpy.types.Operator):
+    bl_idname = "weld.draw"
+    bl_label = "Draw"    
+    
+    def modal(self, context, event):
+        context.area.tag_redraw()        
+        
+        if event.type == 'LEFTMOUSE' and self.phase==0:
+            self.lmb = event.value == 'PRESS'
+            self.draw_event  = None
+            self.initiated=True
+        
+        elif event.type == 'MOUSEMOVE' and self.phase==0:
+            if event.value == 'PRESS':
+                if get_mouse_3d_on_mesh(self,event,context) is not None:
+                    ishit,hit=get_mouse_3d_on_mesh(self,event,context)
+                    if (ishit): 
+                        self.mouse_path.append(hit)
+                        
+            
+            #print("test")
+
+        elif event.type == 'RIGHTMOUSE' and event.value in {'RELEASE'} and self.phase==0:
+            self.unregister_handlers(context)    
+            if not self.initiated:
+                return {'FINISHED'}
+            context = bpy.context
+            scene = context.scene
+            gp = scene.grease_pencil
+            if not gp:
+                gp = bpy.data.grease_pencil.new("GP")
+                scene.grease_pencil = gp
+
+            # Reference grease pencil layer or create one of none exists
+            if gp.layers:
+                gpl = gp.layers[0]
+            else:
+                gpl = gp.layers.new('Welding_Curve', set_active = True )
+
+            # Reference active GP frame or create one of none exists    
+            if gpl.active_frame:
+                fr = gpl.active_frame
+            else:
+                fr = gpl.frames.new(0) 
+
+            # Create a new stroke
+            str = fr.strokes.new()
+            str.draw_mode = '3DSPACE'
+            str.line_width = 1 # default 3
+            
+            str.points.add(len(self.mouse_path))
+            for p0, p in zip(self.mouse_path, str.points):
+                p.co = p0  
+            bpy.ops.gpencil.convert(type='PATH', use_timing_data=False)
+            bpy.ops.gpencil.data_unlink()             
+              
+            #set proper radius
+            bpy.context.scene.objects.active = bpy.context.selected_objects[0]
+            bpy.ops.object.mode_set(mode='EDIT')
+            bpy.ops.curve.select_all(action='SELECT')
+            bpy.ops.curve.radius_set(radius=1)
+            if cyclic: bpy.ops.curve.cyclic_toggle()
+            bpy.ops.object.mode_set(mode='OBJECT')            
+            curve=bpy.context.scene.objects.active
+            
+
+            edge_length=CalculateCurveLength(curve)
+            matrix=curve.matrix_world  
+            MakeWeldFromCurve(curve,edge_length,self.obje,matrix)  
+              
+            self.phase=1  
+            return bpy.ops.weld.translate('INVOKE_DEFAULT')
+        
+
+        elif event.type in {'ESC'} and self.phase==0:
+            self.unregister_handlers(context)
+            bpy.context.scene.welddrawing=False
+            return {'CANCELLED'}
+
+        return {'PASS_THROUGH'}
+
+    def invoke(self, context, event):        
+        self.phase=0
+        self.obje='' 
+        iconname=bpy.context.scene.my_thumbnails
+        if iconname=='icon_1.png': self.obje='Weld_1'
+        if iconname=='icon_2.png': self.obje='Weld_2'
+        if iconname=='icon_3.png': self.obje='Weld_3'
+        if iconname=='icon_4.png': self.obje='Weld_4'
+        if iconname=='icon_5.png': self.obje='Weld_5'
+        if self.obje=='': return {'FINISHED'}
+        self.lmb = False
+        self.initiated=False
+        bpy.ops.object.select_all(action='DESELECT')
+        """
+        if not context.active_object:
+            self.report({'WARNING'}, "no object")
+            return {'CANCELLED'}         
+        """
+        if context.area.type == 'VIEW_3D':
+            bpy.context.scene.welddrawing=True
+            #self.bvhtree = bvhtree_from_object(self,context, context.active_object)
+            # the arguments we pass the the callback
+            args = (self, context)
+            # Add the region OpenGL drawing callback
+            # draw in view space with 'POST_VIEW' and 'PRE_VIEW'
+            self._handle = bpy.types.SpaceView3D.draw_handler_add(draw_callback_px, args, 'WINDOW', 'POST_VIEW')
+
+            self.mouse_path = []
+
+            context.window_manager.modal_handler_add(self)
+            self.draw_event = context.window_manager.event_timer_add(0.1, window=context.window)
+            return {'RUNNING_MODAL'}
+        else:
+            self.report({'WARNING'}, "View3D not found, cannot run operator")
+            return {'CANCELLED'}
+
+    def unregister_handlers(self, context):
+        bpy.types.SpaceView3D.draw_handler_remove(self._handle, 'WINDOW')
+        #context.window_manager.event_timer_remove(self.draw_event)
+        self.draw_event  = None
 
 class OBJECT_OT_WeldTransformModal(bpy.types.Operator):
     bl_idname = "weld.translate"
@@ -66,7 +197,7 @@ class OBJECT_OT_WeldTransformModal(bpy.types.Operator):
             if (self.phase==1):                
                 self.offset = (self._initial_mouse - Vector((event.mouse_x, event.mouse_y, 0.0))) * 0.02
                 multiplificator=(self.offset).length
-                print(multiplificator)
+                #print(multiplificator)
                 if(multiplificator<1):multiplificator=1            
                 self.OBJ_WELD.scale[0]=multiplificator
                 self.OBJ_WELD.scale[1]=multiplificator
@@ -79,6 +210,7 @@ class OBJECT_OT_WeldTransformModal(bpy.types.Operator):
                 self.OBJ_WELD.rotation_euler[0]=multiplificator
         elif event.type == 'LEFTMOUSE' and event.value in {'RELEASE'}:    
             if (self.phase==2):
+                bpy.context.scene.welddrawing=False
                 return {'FINISHED'}   
             if (self.phase==1):
                 self.phase=2
@@ -87,6 +219,7 @@ class OBJECT_OT_WeldTransformModal(bpy.types.Operator):
         elif event.type in {'RIGHTMOUSE', 'ESC'} and event.value in {'RELEASE'}:
             if (self.phase==2):
                 self.OBJ_WELD.rotation_euler[0]=0    
+                bpy.context.scene.welddrawing=False
                 return {'CANCELLED'}
             if (self.phase==1):
                 self.OBJ_WELD.scale[0]=1
@@ -106,9 +239,11 @@ class OBJECT_OT_WeldTransformModal(bpy.types.Operator):
         self.phase=1
         if context.space_data.type == 'VIEW_3D':
             context.window_manager.modal_handler_add(self)
+            bpy.context.scene.welddrawing=True
             return {'RUNNING_MODAL'}
         else:
             self.report({'WARNING'}, "Active space must be a View3d")
+            bpy.context.scene.welddrawing=False
             return {'CANCELLED'}       
         
 class OBJECT_OT_RotateButton(bpy.types.Operator):
@@ -124,11 +259,8 @@ class OBJECT_OT_RotateButton(bpy.types.Operator):
         
 class OBJECT_OT_WeldButton(bpy.types.Operator):
     bl_idname = "weld.weld"    
-    obje : bpy.props.StringProperty()   
-    bl_label = "Weld"
-    
-
-    
+    #obje : bpy.props.StringProperty()   
+    bl_label = "Weld"   
  
     def execute(self, context):
         obje='' 
@@ -259,49 +391,120 @@ class OBJECT_OT_WeldButton(bpy.types.Operator):
         bpy.ops.object.scale_clear()
         bpy.ops.object.select_all()
 	
-        current_path = os.path.dirname(os.path.realpath(__file__))
-        blendfile = os.path.join(current_path, "weld.blend")  #ustawic wlasna sciezke!
-        section   = "\\Object\\"
-        if (self.obje==''):
-            object="Weld_1"
-        else:
-            object=self.obje
-
-        filepath  = blendfile + section + object
-        directory = blendfile + section
-        filename  = object
-
-        bpy.ops.wm.append(
-            filepath=filepath, 
-            filename=filename,
-            directory=directory)
-        print(filepath)    
-        OBJ_WELD=bpy.context.selected_objects[0]
-        OBJ_WELD.matrix_world=matrix
-        array = OBJ_WELD.modifiers.new(type="ARRAY", name="array")
-        array.use_merge_vertices=True
-        array.use_relative_offset=False
-        array.use_constant_offset=True
-        array.merge_threshold=0.0001
-        count=int(float(edge_length)/0.04331)+1
-        array.count=count
-        offset=0.04331
-        if object=="Weld_3": offset=0.1
-        array.constant_offset_displace[0]=offset
-        curve=OBJ_WELD.modifiers.new(type="CURVE", name="curve")
-        curve.object=OBJ1
-        OBJ1.data.resolution_u=int(count/2)
-        bpy.data.objects[OBJ_WELD.name].select_set(True)
-        bpy.context.view_layer.objects.active = OBJ1
-        bpy.ops.object.modifier_apply(modifier='array')
-        #bpy.ops.object.modifier_apply(modifier='curve')
-        bpy.ops.object.select_all(action = 'DESELECT')
-        OBJ_WELD.select_set(True)  
-        bpy.context.view_layer.objects.active = OBJ_WELD      
-        #bpy.ops.object.delete() 
+        MakeWeldFromCurve(OBJ1,edge_length,obje,matrix)
         
         return bpy.ops.weld.translate('INVOKE_DEFAULT')
         #return {'FINISHED'}
+
+def addprop(object):    
+    object["Weld"]="True"
+
+def CalculateCurveLength(curve):
+    matrix=curve.matrix_world
+    edge_length = 0
+    counter=0
+    for s in curve.data.splines:
+        for point in s.points:
+            if counter>0:
+                p0=s.points[counter-1].co
+                p1=s.points[counter].co
+                edge_length += (p0-p1).length
+            counter=counter+1
+        if cyclic:
+            p0=s.points[counter-1].co
+            p1=s.points[0].co
+            edge_length += (p0-p1).length      
+         
+    edge_length = '{:.6f}'.format(edge_length)        
+    return(edge_length)
+
+def MakeWeldFromCurve(OBJ1,edge_length,obje,matrix):
+    current_path = os.path.dirname(os.path.realpath(__file__))
+    blendfile = os.path.join(current_path, "weld.blend")  #ustawic wlasna sciezke!
+    section   = "\\Object\\"
+    if (obje==''):
+        object="Weld_1"
+    else:
+        object=obje
+
+    filepath  = blendfile + section + object
+    directory = blendfile + section
+    filename  = object
+
+    bpy.ops.wm.append(
+        filepath=filepath, 
+        filename=filename,
+        directory=directory)
+    #print(filepath)    
+    OBJ_WELD=bpy.context.selected_objects[0]
+    OBJ_WELD.matrix_world=matrix
+    addprop(OBJ_WELD)
+    array = OBJ_WELD.modifiers.new(type="ARRAY", name="array")
+    array.use_merge_vertices=True
+    array.use_relative_offset=False
+    array.use_constant_offset=True
+    array.merge_threshold=0.0001
+    count=int(float(edge_length)/0.04331)+1
+    array.count=count
+    offset=0.04331
+    if object=="Weld_3": offset=0.1
+    array.constant_offset_displace[0]=offset
+    curve=OBJ_WELD.modifiers.new(type="CURVE", name="curve")
+    curve.object=OBJ1
+    OBJ1.data.resolution_u=int(count/2)
+    bpy.data.objects[OBJ_WELD.name].select_set(True)
+    bpy.context.view_layer.objects.active = OBJ1
+    bpy.ops.object.modifier_apply(modifier='array')
+    #bpy.ops.object.modifier_apply(modifier='curve')
+    bpy.ops.object.select_all(action = 'DESELECT')
+    OBJ_WELD.select_set(True)  
+    bpy.context.view_layer.objects.active = OBJ_WELD      
+    #bpy.ops.object.delete() 
+
+def draw_callback_px(self, context):
+
+    shader = gpu.shader.from_builtin('3D_UNIFORM_COLOR')
+    bgl.glEnable(bgl.GL_BLEND)
+    bgl.glEnable(bgl.GL_LINE_SMOOTH)
+    bgl.glLineWidth(3)
+
+    batch = batch_for_shader(shader, 'LINE_STRIP', {"pos": self.mouse_path})
+    shader.bind()
+    shader.uniform_float("color", (0.0, 0.0, 0.0, 0.5))
+    batch.draw(shader)
+
+    """
+    for x,y,z in self.mouse_path:        
+        bgl.glVertex3f(x, y,z)
+    bgl.glEnd()
+    """
+    # restore opengl defaults
+    bgl.glLineWidth(1)
+    bgl.glDisable(bgl.GL_BLEND)
+  
+def get_origin_and_direction(self,event,context):
+    region=context.region
+    region_3d=context.space_data.region_3d
+    mouse_coord=(event.mouse_region_x,event.mouse_region_y)
+    #vector = region_2d_to_vector_3d(region, region_3d, mouse_coord)
+    origin=region_2d_to_origin_3d(region,region_3d,mouse_coord)
+    #direction=region_2d_to_location_3d(region, region_3d, mouse_coord, vector)    
+    direction=region_2d_to_vector_3d(region, region_3d, mouse_coord)  
+    return origin,direction
+
+def get_mouse_3d_on_mesh(self,event,context):
+    origin,direction=get_origin_and_direction(self,event,context)
+    self.ishit,self.hit,self.normal, *_ =context.scene.ray_cast(bpy.context.view_layer,origin,direction)
+    #print(self.ishit,self.hit)
+    return self.ishit,self.hit
+
+def bvhtree_from_object(self, context, object):
+    bm = bmesh.new()
+    mesh = object.data
+    bm.from_mesh(mesh)
+    bm.transform(object.matrix_world)
+    bvhtree = BVHTree.FromBMesh(bm)
+    return bvhtree
 
 class PANEL_PT_WelderToolsPanel(bpy.types.Panel):
     bl_label = "Welder"
@@ -313,18 +516,21 @@ class PANEL_PT_WelderToolsPanel(bpy.types.Panel):
     def draw(self, context):
         row=self.layout.row()
         row.template_icon_view(context.scene, "my_thumbnails")
+        row.enabled=not bpy.context.scene.welddrawing
+        row=self.layout.row()
         self.layout.operator("weld.weld")
-        #self.layout.operator("weld.weld").obje = "Plane.001"
-        #self.layout.operator("rotate.rotate")
-
+        row.enabled=not bpy.context.scene.welddrawing
+        row=self.layout.row()
+        row.operator("weld.draw")
+        row.enabled=not bpy.context.scene.welddrawing
              
 classes =(
 OBJECT_OT_WeldButton,
 PANEL_PT_WelderToolsPanel,
-OBJECT_OT_WeldTransformModal
+OBJECT_OT_WeldTransformModal,
+OBJECT_OT_WelderDrawOperator
 )
 register, unregister = bpy.utils.register_classes_factory(classes) 
-
 
 if __name__ == "__main__":
     register()
