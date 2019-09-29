@@ -63,7 +63,7 @@ class WelderDrawOperator(bpy.types.Operator):
  
             #print("test")
 
-        elif event.type == 'RIGHTMOUSE' and event.value in {'RELEASE'} and self.phase==0:
+        elif (event.type == 'RIGHTMOUSE' or event.type == 'RET') and event.value in {'RELEASE'} and self.phase==0:
             print("test")
             self.unregister_handlers(context)    
             if not self.initiated:

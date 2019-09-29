@@ -90,7 +90,7 @@ class OBJECT_OT_WelderDrawOperator(bpy.types.Operator):
             
             #print("test")
 
-        elif event.type == 'RIGHTMOUSE' and event.value in {'RELEASE'} and self.phase==0:
+        elif (event.type == 'RIGHTMOUSE' or event.type == 'RET') and event.value in {'RELEASE'} and self.phase==0:
             self.unregister_handlers(context)    
             if not self.initiated:
                 return {'FINISHED'}
