@@ -74,12 +74,14 @@ class OBJECT_OT_WelderDrawOperator(bpy.types.Operator):
         context.area.tag_redraw()        
         
         if event.type == 'LEFTMOUSE' and self.phase==0:
-            self.lmb = event.value == 'PRESS'
+            self.lmb=True
+            if event.value in {'RELEASE'}: self.lmb=False
             self.draw_event  = None
-            self.initiated=True
+            self.initiated=True            
+            #self.lmb = event.value == 'PRESS'
         
         elif event.type == 'MOUSEMOVE' and self.phase==0:
-            if event.value == 'PRESS':
+            if event.value == 'PRESS' and self.lmb:
                 if get_mouse_3d_on_mesh(self,event,context) is not None:
                     ishit,hit=get_mouse_3d_on_mesh(self,event,context)
                     if (ishit): 
@@ -88,22 +90,24 @@ class OBJECT_OT_WelderDrawOperator(bpy.types.Operator):
             
             #print("test")
 
-        elif event.type == 'RIGHTMOUSE' and event.value in {'RELEASE'} and self.phase==0:
+        elif (event.type == 'RIGHTMOUSE' or event.type == 'RET') and event.value in {'RELEASE'} and self.phase==0:
             self.unregister_handlers(context)    
             if not self.initiated:
                 return {'FINISHED'}
             context = bpy.context
-            scene = context.scene
-            gp = scene.grease_pencil
-            if not gp:
-                gp = bpy.data.grease_pencil.new("GP")
-                scene.grease_pencil = gp
-
+            scene = context.scene        
+            
+            gpencil_obj_name="gp_weld"             
+            
+            if gpencil_obj_name not in bpy.context.scene.objects:
+                bpy.ops.object.gpencil_add(location=(0, 0, 0), type='EMPTY')                
+                bpy.context.view_layer.objects.active.name = gpencil_obj_name
+            gp = bpy.context.scene.objects[gpencil_obj_name]    
             # Reference grease pencil layer or create one of none exists
-            if gp.layers:
-                gpl = gp.layers[0]
+            if gp.data.layers:
+                gpl = gp.data.layers[0]
             else:
-                gpl = gp.layers.new('Welding_Curve', set_active = True )
+                gpl = gp.data.layers.new('Welding_Curve', set_active = True )
 
             # Reference active GP frame or create one of none exists    
             if gpl.active_frame:
@@ -113,23 +117,25 @@ class OBJECT_OT_WelderDrawOperator(bpy.types.Operator):
 
             # Create a new stroke
             str = fr.strokes.new()
-            str.draw_mode = '3DSPACE'
+            str.display_mode = '3DSPACE'
             str.line_width = 1 # default 3
             
             str.points.add(len(self.mouse_path))
             for p0, p in zip(self.mouse_path, str.points):
                 p.co = p0  
             bpy.ops.gpencil.convert(type='PATH', use_timing_data=False)
-            bpy.ops.gpencil.data_unlink()             
+            
+            remove_obj(gp.name)
+            #bpy.ops.gpencil.data_unlink()             
               
             #set proper radius
-            bpy.context.scene.objects.active = bpy.context.selected_objects[0]
+            bpy.context.view_layer.objects.active = bpy.context.selected_objects[0]
             bpy.ops.object.mode_set(mode='EDIT')
             bpy.ops.curve.select_all(action='SELECT')
             bpy.ops.curve.radius_set(radius=1)
             if cyclic: bpy.ops.curve.cyclic_toggle()
             bpy.ops.object.mode_set(mode='OBJECT')            
-            curve=bpy.context.scene.objects.active
+            curve=bpy.context.view_layer.objects.active
             
 
             edge_length=CalculateCurveLength(curve)
@@ -395,6 +401,18 @@ class OBJECT_OT_WeldButton(bpy.types.Operator):
         
         return bpy.ops.weld.translate('INVOKE_DEFAULT')
         #return {'FINISHED'}
+
+def remove_obj(obj):
+    selected=bpy.context.selected_objects
+    active=bpy.context.view_layer.objects.active
+    bpy.ops.object.select_all(action='DESELECT')
+    bpy.data.objects[obj].select_set(True)
+    bpy.ops.object.delete()
+    for o in selected:
+        try:
+            o.select_set(True)
+        except:
+            continue
 
 def addprop(object):    
     object["Weld"]="True"
