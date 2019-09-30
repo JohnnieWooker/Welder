@@ -91,7 +91,7 @@ class OBJECT_OT_WelderDrawOperator(bpy.types.Operator):
             #print("test")
 
         elif (event.type == 'RIGHTMOUSE' or event.type == 'RET') and event.value in {'RELEASE'} and self.phase==0:
-            self.unregister_handlers(context)    
+            self.unregister_handlers(context)       
             if not self.initiated:
                 return {'FINISHED'}
             context = bpy.context
@@ -149,11 +149,14 @@ class OBJECT_OT_WelderDrawOperator(bpy.types.Operator):
         elif event.type in {'ESC'} and self.phase==0:
             self.unregister_handlers(context)
             bpy.context.scene.welddrawing=False
+            for km in self.list: km.active = True
+            for km in self.listy: km.active = True
             return {'CANCELLED'}
 
         return {'PASS_THROUGH'}
 
-    def invoke(self, context, event):        
+    def invoke(self, context, event):   
+        switchkeymap(False)         
         self.phase=0
         self.obje='' 
         iconname=bpy.context.scene.my_thumbnails
@@ -186,13 +189,26 @@ class OBJECT_OT_WelderDrawOperator(bpy.types.Operator):
             self.draw_event = context.window_manager.event_timer_add(0.1, window=context.window)
             return {'RUNNING_MODAL'}
         else:
+            fswitchkeymap(True)
             self.report({'WARNING'}, "View3D not found, cannot run operator")
             return {'CANCELLED'}
 
-    def unregister_handlers(self, context):
+    def unregister_handlers(self, context):        
+        switchkeymap(True)
         bpy.types.SpaceView3D.draw_handler_remove(self._handle, 'WINDOW')
         #context.window_manager.event_timer_remove(self.draw_event)
         self.draw_event  = None
+
+def switchkeymap(state):
+    x = bpy.context.window_manager.keyconfigs[2].keymaps['3D View'].keymap_items
+    y=bpy.context.window_manager.keyconfigs[2].keymaps['3D View Tool: Select Box'].keymap_items
+    z=bpy.context.window_manager.keyconfigs[2].keymaps['Object Mode'].keymap_items
+    list = [keymap for keymap in x if keymap.type == 'LEFTMOUSE' or keymap.type == 'RIGHTMOUSE' or keymap.type == 'EVT_TWEAK_L' or keymap.type == 'ACTIONMOUSE' or keymap.type == 'SELECTMOUSE']
+    listy=[keymap for keymap in y]
+    listz = [keymap for keymap in z if keymap.type == 'LEFTMOUSE' or keymap.type == 'RIGHTMOUSE' or keymap.type == 'EVT_TWEAK_L' or keymap.type == 'ACTIONMOUSE' or keymap.type == 'SELECTMOUSE']
+    for km in list: km.active = state
+    for km in listy: km.active = state
+    for km in listz: km.active = state
 
 class OBJECT_OT_WeldTransformModal(bpy.types.Operator):
     bl_idname = "weld.translate"

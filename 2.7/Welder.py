@@ -128,7 +128,7 @@ class WelderDrawOperator(bpy.types.Operator):
 
     def invoke(self, context, event):   
         self.x = context.window_manager.keyconfigs['Blender'].keymaps['3D View'].keymap_items
-        self.list = [keymap for keymap in self.x if keymap.name == 'Layers']
+        self.list = [keymap for keymap in self.x if keymap.type == 'LEFTMOUSE' or keymap.type == 'RIGHTMOUSE' or keymap.type == 'ACTIONMOUSE' or keymap.type == 'SELECTMOUSE']
         for km in self.list: km.active = False     
         self.phase=0
         self.obje='' 
@@ -162,10 +162,12 @@ class WelderDrawOperator(bpy.types.Operator):
             self.draw_event = context.window_manager.event_timer_add(0.1, window=context.window)
             return {'RUNNING_MODAL'}
         else:
+            for km in self.list: km.active = True
             self.report({'WARNING'}, "View3D not found, cannot run operator")
             return {'CANCELLED'}
 
     def unregister_handlers(self, context):
+        for km in self.list: km.active = True
         bpy.types.SpaceView3D.draw_handler_remove(self._handle, 'WINDOW')
         #context.window_manager.event_timer_remove(self.draw_event)
         self.draw_event  = None
