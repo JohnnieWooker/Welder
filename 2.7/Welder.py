@@ -45,7 +45,7 @@ bpy.types.Scene.welddrawing=bpy.props.BoolProperty(
 
 class WelderDrawOperator(bpy.types.Operator):
     bl_idname = "weld.draw"
-    bl_label = "Draw"    
+    bl_label = "Draw"   
     
     def modal(self, context, event):
         context.area.tag_redraw()        
@@ -67,6 +67,7 @@ class WelderDrawOperator(bpy.types.Operator):
             print("test")
             self.unregister_handlers(context)    
             if not self.initiated:
+                for km in self.list: km.active = True
                 return {'FINISHED'}
             context = bpy.context
             scene = context.scene
@@ -108,22 +109,27 @@ class WelderDrawOperator(bpy.types.Operator):
             curve=bpy.context.scene.objects.active
             
 
-            edge_length=CalculateCurveLength(curve)
+            edge_length=CalculateCurveLength(curve)            
             matrix=curve.matrix_world  
             MakeWeldFromCurve(curve,edge_length,self.obje,matrix)  
               
             self.phase=1  
+            for km in self.list: km.active = True
             return bpy.ops.weld.translate('INVOKE_DEFAULT')
         
 
         elif event.type in {'ESC'} and self.phase==0:
             self.unregister_handlers(context)
             bpy.context.scene.welddrawing=False
+            for km in self.list: km.active = True
             return {'CANCELLED'}
 
         return {'PASS_THROUGH'}
 
-    def invoke(self, context, event):        
+    def invoke(self, context, event):   
+        self.x = context.window_manager.keyconfigs['Blender'].keymaps['3D View'].keymap_items
+        self.list = [keymap for keymap in self.x if keymap.name == 'Layers']
+        for km in self.list: km.active = False     
         self.phase=0
         self.obje='' 
         iconname=bpy.context.scene.my_thumbnails
@@ -374,6 +380,9 @@ class OBJECT_OT_WeldButton(bpy.types.Operator):
 def addprop(object):    
     object["Weld"]="True"
 
+def addlenprop(object,length):
+    object["CurveLen"]=length
+
 def CalculateCurveLength(curve):
     matrix=curve.matrix_world
     edge_length = 0
@@ -436,7 +445,8 @@ def MakeWeldFromCurve(OBJ1,edge_length,obje,matrix):
     OBJ_WELD.select = True
     bpy.context.scene.objects.active=OBJ_WELD    
     #bpy.ops.object.delete()
-    #bpy.ops.object.mode_set(mode = 'EDIT')     
+    #bpy.ops.object.mode_set(mode = 'EDIT')    
+    addlenprop(OBJ1,edge_length) 
 
 def draw_callback_px(self, context):
 
