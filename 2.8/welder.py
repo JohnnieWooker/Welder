@@ -56,7 +56,6 @@ def generate_previews():
 
 bpy.types.Scene.welddrawing=bpy.props.BoolProperty(
     name="welddrawing", description="welddrawing", default=False)
-cyclic=True
 preview_collections = {}
 pcoll = bpy.utils.previews.new()
 images_path = pcoll.images_location = os.path.join(os.path.dirname(__file__), "welder_images")
@@ -91,6 +90,7 @@ class OBJECT_OT_WelderDrawOperator(bpy.types.Operator):
             #print("test")
 
         elif (event.type == 'RIGHTMOUSE' or event.type == 'RET') and event.value in {'RELEASE'} and self.phase==0:
+            cyclic=bpy.context.scene.cyclic
             self.unregister_handlers(context)       
             if not self.initiated:
                 return {'FINISHED'}
@@ -434,6 +434,7 @@ def addprop(object):
     object["Weld"]="True"
 
 def CalculateCurveLength(curve):
+    cyclic=bpy.context.scene.cyclic
     matrix=curve.matrix_world
     edge_length = 0
     counter=0
@@ -557,6 +558,8 @@ class PANEL_PT_WelderToolsPanel(bpy.types.Panel):
         row=self.layout.row()
         row.operator("weld.draw")
         row.enabled=not bpy.context.scene.welddrawing
+        row=self.layout.row()
+        row.prop(context.scene, "cyclic")
              
 classes =(
 OBJECT_OT_WeldButton,
@@ -565,6 +568,7 @@ OBJECT_OT_WeldTransformModal,
 OBJECT_OT_WelderDrawOperator
 )
 register, unregister = bpy.utils.register_classes_factory(classes) 
+bpy.types.Scene.cyclic=bpy.props.BoolProperty(name="cyclic", description="cyclic",default=True)
 
 if __name__ == "__main__":
     register()

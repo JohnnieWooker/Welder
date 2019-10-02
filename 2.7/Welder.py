@@ -38,8 +38,6 @@ bl_info = {
 
 preview_collections = {}
 
-cyclic=True
-
 bpy.types.Scene.welddrawing=bpy.props.BoolProperty(
         name="welddrawing", description="welddrawing", default=False)
 
@@ -64,7 +62,7 @@ class WelderDrawOperator(bpy.types.Operator):
             #print("test")
 
         elif (event.type == 'RIGHTMOUSE' or event.type == 'RET') and event.value in {'RELEASE'} and self.phase==0:
-            print("test")
+            cyclic=bpy.context.scene.cyclic
             self.unregister_handlers(context)    
             if not self.initiated:
                 for km in self.list: km.active = True
@@ -386,6 +384,7 @@ def addlenprop(object,length):
     object["CurveLen"]=length
 
 def CalculateCurveLength(curve):
+    cyclic=bpy.context.scene.cyclic
     matrix=curve.matrix_world
     edge_length = 0
     counter=0
@@ -545,12 +544,15 @@ class WelderToolsPanel(bpy.types.Panel):
         row=self.layout.row()
         row.operator("weld.draw")
         row.enabled=not bpy.context.scene.welddrawing
+        row=self.layout.row()
+        row.prop(context.scene, "cyclic")
     
 def register():
-	bpy.utils.register_class(WelderToolsPanel)	
+    bpy.types.Scene.cyclic=bpy.props.BoolProperty(name="cyclic", description="cyclic", default=True)
+    bpy.utils.register_class(WelderToolsPanel)
 
 def unregister():
-    bpy.utils.unregister_class(WelderToolsPanel)              
+    bpy.utils.unregister_class(WelderToolsPanel)         
 
 if __name__ == "__main__":
     register()
