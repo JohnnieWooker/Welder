@@ -19,6 +19,7 @@ import mathutils
 import os 
 from mathutils import Vector
 import bpy.utils.previews
+from math import (sin,pow,)
 from bpy.props import StringProperty, EnumProperty
 from bpy_extras.view3d_utils import (
     region_2d_to_vector_3d,
@@ -58,6 +59,7 @@ bpy.types.Scene.welddrawing=bpy.props.BoolProperty(
     name="welddrawing", description="welddrawing", default=False)
 preview_collections = {}
 pcoll = bpy.utils.previews.new()
+simplify_error=0.001
 images_path = pcoll.images_location = os.path.join(os.path.dirname(__file__), "welder_images")
 pcoll.images_location = bpy.path.abspath(images_path)
 preview_collections["thumbnail_previews"] = pcoll
@@ -137,7 +139,7 @@ class OBJECT_OT_WelderDrawOperator(bpy.types.Operator):
             bpy.ops.object.mode_set(mode='OBJECT')            
             curve=bpy.context.view_layer.objects.active
             
-
+            SimplifyCurve(curve,simplify_error)
             edge_length=CalculateCurveLength(curve)
             matrix=curve.matrix_world  
             MakeWeldFromCurve(curve,edge_length,self.obje,matrix)  
@@ -429,6 +431,80 @@ def remove_obj(obj):
             o.select_set(True)
         except:
             continue
+
+def altitude(point1, point2, pointn):
+    edge1 = point2 - point1
+    edge2 = pointn - point1
+    if edge2.length == 0:
+        altitude = 0
+        return altitude
+    if edge1.length == 0:
+        altitude = edge2.length
+        return altitude
+    alpha = edge1.angle(edge2)
+    altitude = sin(alpha) * edge2.length
+    return altitude
+
+def iterate(points, newVerts, error):
+    new = []
+    for newIndex in range(len(newVerts) - 1):
+        bigVert = 0
+        alti_store = 0
+        for i, point in enumerate(points[newVerts[newIndex] + 1: newVerts[newIndex + 1]]):
+            alti = altitude(points[newVerts[newIndex]], points[newVerts[newIndex + 1]], point)
+            if alti > alti_store:
+                alti_store = alti
+                if alti_store >= error:
+                    bigVert = i + 1 + newVerts[newIndex]
+        if bigVert:
+            new.append(bigVert)
+    if new == []:
+        return False
+    return new
+
+def simplify_RDP(splineVerts,error):
+    newVerts = [0, len(splineVerts) - 1]
+    new = 1
+    while new is not False:
+        new = iterate(splineVerts, newVerts, error)
+        if new:
+            newVerts += new
+            newVerts.sort()
+    return newVerts
+
+def vertsToPoints(newVerts, splineVerts):
+    newPoints = []
+    for v in newVerts:
+        newPoints += (splineVerts[v].to_tuple())
+        newPoints.append(1)
+    return newPoints
+
+def SimplifyCurve(obj,error):
+    bpy.ops.object.select_all(action='DESELECT')
+    scene=bpy.context.scene
+    splines = obj.data.splines.values()
+    curve = bpy.data.curves.new("Simple_" + obj.name, type='CURVE')
+    curve.dimensions='3D'
+    for spline_i, spline in enumerate(splines):
+        splineType = spline.type
+        splineVerts = [splineVert.co.to_3d() for splineVert in spline.points.values()]
+        newVerts = simplify_RDP(splineVerts,error)
+        newPoints = vertsToPoints(newVerts, splineVerts)
+        newSpline = curve.splines.new(type=splineType)
+        newSpline.points.add(int(len(newPoints) * 0.25 - 1))
+        newSpline.points.foreach_set('co', newPoints)
+        newSpline.use_endpoint_u = spline.use_endpoint_u   
+    newCurve = bpy.data.objects.new("Simple_" + obj.name, curve)
+    scene.collection.objects.link(newCurve)
+    newCurve.matrix_world = obj.matrix_world   
+    bpy.context.view_layer.objects.active = obj
+    obj.select_set(True)
+    newCurve.select_set(True)
+    bpy.ops.object.join()
+    bpy.ops.object.mode_set(mode = 'EDIT')
+    bpy.ops.curve.delete(type='VERT')
+    if bpy.context.scene.cyclic: bpy.ops.curve.cyclic_toggle()
+    bpy.ops.object.mode_set(mode = 'OBJECT')    
 
 def addprop(object):    
     object["Weld"]="True"
