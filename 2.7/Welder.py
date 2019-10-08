@@ -17,6 +17,7 @@ import os
 from mathutils import Vector
 from mathutils.bvhtree import BVHTree
 import bpy.utils.previews
+from math import (sin,pow,)
 from bpy.props import StringProperty, EnumProperty
 from bpy_extras.view3d_utils import (
     region_2d_to_vector_3d,
@@ -37,9 +38,10 @@ bl_info = {
 	}
 
 preview_collections = {}
-
+curve_node_mapping = {}
 bpy.types.Scene.welddrawing=bpy.props.BoolProperty(
         name="welddrawing", description="welddrawing", default=False)
+simplify_error=0.001
 
 class WelderDrawOperator(bpy.types.Operator):
     bl_idname = "weld.draw"
@@ -106,7 +108,7 @@ class WelderDrawOperator(bpy.types.Operator):
             bpy.ops.object.mode_set(mode='OBJECT')            
             curve=bpy.context.scene.objects.active
             
-
+            SimplifyCurve(curve,simplify_error)
             edge_length=CalculateCurveLength(curve)            
             matrix=curve.matrix_world  
             MakeWeldFromCurve(curve,edge_length,self.obje,matrix)  
@@ -377,6 +379,79 @@ class OBJECT_OT_WeldButton(bpy.types.Operator):
         
         return bpy.ops.weld.translate('INVOKE_DEFAULT')
 
+def altitude(point1, point2, pointn):
+    edge1 = point2 - point1
+    edge2 = pointn - point1
+    if edge2.length == 0:
+        altitude = 0
+        return altitude
+    if edge1.length == 0:
+        altitude = edge2.length
+        return altitude
+    alpha = edge1.angle(edge2)
+    altitude = sin(alpha) * edge2.length
+    return altitude
+
+def iterate(points, newVerts, error):
+    new = []
+    for newIndex in range(len(newVerts) - 1):
+        bigVert = 0
+        alti_store = 0
+        for i, point in enumerate(points[newVerts[newIndex] + 1: newVerts[newIndex + 1]]):
+            alti = altitude(points[newVerts[newIndex]], points[newVerts[newIndex + 1]], point)
+            if alti > alti_store:
+                alti_store = alti
+                if alti_store >= error:
+                    bigVert = i + 1 + newVerts[newIndex]
+        if bigVert:
+            new.append(bigVert)
+    if new == []:
+        return False
+    return new
+
+def simplify_RDP(splineVerts,error):
+    newVerts = [0, len(splineVerts) - 1]
+    new = 1
+    while new is not False:
+        new = iterate(splineVerts, newVerts, error)
+        if new:
+            newVerts += new
+            newVerts.sort()
+    return newVerts
+
+def vertsToPoints(newVerts, splineVerts):
+    newPoints = []
+    for v in newVerts:
+        newPoints += (splineVerts[v].to_tuple())
+        newPoints.append(1)
+    return newPoints
+
+def SimplifyCurve(obj,error):
+    bpy.ops.object.select_all(action='DESELECT')
+    scene=bpy.context.scene
+    splines = obj.data.splines.values()
+    curve = bpy.data.curves.new("Simple_" + obj.name, type='CURVE')
+    curve.dimensions='3D'
+    for spline_i, spline in enumerate(splines):
+        splineType = spline.type
+        splineVerts = [splineVert.co.to_3d() for splineVert in spline.points.values()]
+        newVerts = simplify_RDP(splineVerts,error)
+        newPoints = vertsToPoints(newVerts, splineVerts)
+        newSpline = curve.splines.new(type=splineType)
+        newSpline.points.add(int(len(newPoints) * 0.25 - 1))
+        newSpline.points.foreach_set('co', newPoints)
+        newSpline.use_endpoint_u = spline.use_endpoint_u   
+    newCurve = bpy.data.objects.new("Simple_" + obj.name, curve)
+    scene.objects.link(newCurve)
+    newCurve.matrix_world = obj.matrix_world    
+    scene.objects.active = obj
+    obj.select=True
+    newCurve.select = True
+    bpy.ops.object.join()
+    bpy.ops.object.mode_set(mode = 'EDIT')
+    bpy.ops.curve.delete(type='VERT')
+    bpy.ops.object.mode_set(mode = 'OBJECT')    
+
 def addprop(object):    
     object["Weld"]="True"
 
@@ -507,6 +582,18 @@ def generate_previews():
             enum_items.append((image, image, "", thumb.icon_id, i))
             
     return enum_items
+
+def WeldNodeTree():
+    if 'WeldCurveData' not in bpy.data.node_groups:
+        ng = bpy.data.node_groups.new('WeldCurveData', 'ShaderNodeTree')
+        #ng.fake_user = True
+    return bpy.data.node_groups['WeldCurveData'].nodes
+
+def WeldCurveData(curve_name,self):
+    if curve_name not in curve_node_mapping:    
+        cn = WeldNodeTree().new('ShaderNodeRGBCurve')     
+        curve_node_mapping[curve_name] = cn.name
+    return WeldNodeTree()[curve_node_mapping[curve_name]]
    
 def register():
     pcoll = bpy.utils.previews.new()
@@ -547,12 +634,28 @@ class WelderToolsPanel(bpy.types.Panel):
         row=self.layout.row()
         row.prop(context.scene, "cyclic")
     
+class WelderSubPanelDynamic(bpy.types.Panel):
+    bl_label = "Shape"
+    bl_space_type = "VIEW_3D"
+    bl_region_type = "TOOLS"
+    bl_category = "Welder"
+    @classmethod
+    def poll(cls, context):
+        if (context.active_object != None):
+            return bpy.context.scene.objects.active.get('Weld') is not None
+        else: return False
+    def draw(self, context):        
+        row=self.layout.row()
+        self.layout.template_curve_mapping(WeldCurveData('WeldCurve',self), "mapping")   
+    
 def register():
     bpy.types.Scene.cyclic=bpy.props.BoolProperty(name="cyclic", description="cyclic", default=True)
     bpy.utils.register_class(WelderToolsPanel)
+    bpy.utils.register_class(WelderSubPanelDynamic)
 
 def unregister():
-    bpy.utils.unregister_class(WelderToolsPanel)         
+    bpy.utils.unregister_class(WelderToolsPanel)    
+    bpy.utils.unregister_class(WelderSubPanelDynamic)         
 
 if __name__ == "__main__":
     register()
