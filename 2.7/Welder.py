@@ -29,7 +29,7 @@ from bpy_extras.view3d_utils import (
 bl_info = {
     "name": "Welder",
     "author": "Łukasz Hoffmann",
-    "version": (0,0, 4),
+    "version": (0,0, 5),
     "location": "View 3D > Object Mode > Tool Shelf",
     "blender": (2, 7, 9),
     "description": "Generate weld along the odge of intersection of two objects",
@@ -450,6 +450,9 @@ def SimplifyCurve(obj,error):
     bpy.ops.object.join()
     bpy.ops.object.mode_set(mode = 'EDIT')
     bpy.ops.curve.delete(type='VERT')
+    bpy.ops.curve.select_all(action='SELECT')
+    bpy.ops.curve.radius_set(radius=1)    
+    if bpy.context.scene.cyclic: bpy.ops.curve.cyclic_toggle()
     bpy.ops.object.mode_set(mode = 'OBJECT')    
 
 def addprop(object):    
@@ -651,11 +654,11 @@ class WelderSubPanelDynamic(bpy.types.Panel):
 def register():
     bpy.types.Scene.cyclic=bpy.props.BoolProperty(name="cyclic", description="cyclic", default=True)
     bpy.utils.register_class(WelderToolsPanel)
-    bpy.utils.register_class(WelderSubPanelDynamic)
+    #bpy.utils.register_class(WelderSubPanelDynamic)
 
 def unregister():
     bpy.utils.unregister_class(WelderToolsPanel)    
-    bpy.utils.unregister_class(WelderSubPanelDynamic)         
+    #bpy.utils.unregister_class(WelderSubPanelDynamic)         
 
 if __name__ == "__main__":
     register()
