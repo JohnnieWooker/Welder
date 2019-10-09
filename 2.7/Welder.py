@@ -248,136 +248,143 @@ class OBJECT_OT_WeldButton(bpy.types.Operator):
     
     
     def execute(self, context):
-        obje='' 
-        iconname=bpy.context.scene.my_thumbnails
-        if iconname=='icon_1.png': obje='Weld_1'
-        if iconname=='icon_2.png': obje='Weld_2'
-        if iconname=='icon_3.png': obje='Weld_3'
-        if iconname=='icon_4.png': obje='Weld_4'
-        if iconname=='icon_5.png': obje='Weld_5'
-        if obje=='': return {'FINISHED'}
-        def is_inside(p, obj):
-            max_dist = 1.84467e+19
-            found, point, normal, face = obj.closest_point_on_mesh(p, max_dist)
-            p2 = point-p
-            v = p2.dot(normal)
-            #print(v)
-            return not(v < 0.0001)
-        objects = bpy.data.objects
-        bpy.ops.object.transform_apply(location=True, rotation=True, scale=True) 
-        OBJ1=bpy.context.selected_objects[0]
-        matrix=OBJ1.matrix_world
-        OBJ2=bpy.context.selected_objects[1]
-        bpy.ops.object.duplicate()
-        OBJ3=bpy.context.selected_objects[0]
-        OBJ4=bpy.context.selected_objects[1]
-        bool_two = OBJ1.modifiers.new(type="BOOLEAN", name="bool 2")
-        bool_two.object = OBJ2
-        bool_two.operation = 'INTERSECT'
-        bpy.context.scene.objects.active = OBJ1
-        bpy.ops.object.modifier_apply (modifier='bool 2')
-        bpy.ops.object.select_all(action = 'DESELECT')
-        OBJ2.select = True
-        bpy.ops.object.delete()
-        bpy.context.scene.objects.active = OBJ1
-        OBJ1.select = True
-        vertices1 = OBJ1.data.vertices
-        #poczatek sprawdzania kolizji z pierwszym obiektem
-        list=[]
-        for v in vertices1:
-            #print (is_inside(mathutils.Vector(v.co), OBJ3))
-            #print (v.index)
-            if (is_inside(mathutils.Vector(OBJ3.matrix_world*v.co), OBJ3)==True):
-                list.append(v.index)
-            if (is_inside(mathutils.Vector(OBJ4.matrix_world*v.co), OBJ4)==True):
-                list.append(v.index)    
-            continue
-        #print ("Koniec liczenia")
-        
-        bpy.ops.object.mode_set(mode = 'EDIT')
-        bm1 = bmesh.from_edit_mesh(OBJ1.data)
-        vertices2 = bm1.verts
-
-        for vert in vertices2:
-            vert.select=False
-            continue
-         
-        bm1.verts.ensure_lookup_table()    
-        for vert2 in list:
-           vertices2[vert2].select=True   
-        #koniec sprawdzania kolizji z pierwszym obiektem   
-         
-        bpy.ops.mesh.delete(type='VERT') # usuwanie wierzcholkow
-
-        bpy.ops.mesh.select_mode(type="EDGE")
-        for f in bm1.faces:
-            f.select=False
-        #bpy.ops.mesh.delete(type='FACE') # usuwanie wierzcholkow 
-
-        def search(mymesh):
-                culprits=[]
-                for e in mymesh.edges:
-                        e.select = False
-                        shared = 0
-                        for f in mymesh.faces:
-                                for vf1 in f.verts:
-                                        if vf1 == e.verts[0]:
-                                                for vf2 in f.verts:
-                                                        if vf2 == e.verts[1]:
-                                                                shared = shared + 1
-                        if (shared > 2):
-                                #Manifold
-                                culprits.append(e)
-                                e.select = True
-                        if (shared < 2):
-                                #Open
-                                culprits.append(e)
-                                e.select = True
-                return culprits
-
-        search(bm1)
-        for f in bm1.edges:
-            f.select=not f.select
-
-        bpy.ops.mesh.delete(type='EDGE') # usuwanie wielokątow    
-
-
-        #POPRAWKA DO SKRYPTU MANIFOLD - USUWANIE TROJKATOW PRZY KRAWEDZIACH
-        bpy.ops.mesh.select_mode(type="EDGE")
-
-        for e in bm1.edges:
-            e.select=False
-            shared=0
-            for v in e.verts:        
-                for ed in v.link_edges:
-                    shared=shared+1        
-            if (shared==6):
-                e.select=True  
-        bpy.ops.mesh.delete(type='EDGE') # usuwanie wielokątow 
-
-        for v in bm1.edges:
-            v.select=True
-        
-        bpy.ops.object.mode_set(mode = 'OBJECT')
-
-        _data = bpy.context.active_object.data
+        if (bpy.context.object.mode!='OBJECT'):
+            self.report({'ERROR'}, 'Welding works only in object mode')
+            return {'FINISHED'}
+        if (len(bpy.context.selected_objects)!=2):
+            self.report({'ERROR'}, 'Select 2 objects or spline')
+            return {'FINISHED'}
+        else:    
+            obje='' 
+            iconname=bpy.context.scene.my_thumbnails
+            if iconname=='icon_1.png': obje='Weld_1'
+            if iconname=='icon_2.png': obje='Weld_2'
+            if iconname=='icon_3.png': obje='Weld_3'
+            if iconname=='icon_4.png': obje='Weld_4'
+            if iconname=='icon_5.png': obje='Weld_5'
+            if obje=='': return {'FINISHED'}
+            def is_inside(p, obj):
+                max_dist = 1.84467e+19
+                found, point, normal, face = obj.closest_point_on_mesh(p, max_dist)
+                p2 = point-p
+                v = p2.dot(normal)
+                #print(v)
+                return not(v < 0.0001)
+            objects = bpy.data.objects
+            bpy.ops.object.transform_apply(location=True, rotation=True, scale=True) 
+            OBJ1=bpy.context.selected_objects[0]
+            matrix=OBJ1.matrix_world
+            OBJ2=bpy.context.selected_objects[1]
+            bpy.ops.object.duplicate()
+            OBJ3=bpy.context.selected_objects[0]
+            OBJ4=bpy.context.selected_objects[1]
+            bool_two = OBJ1.modifiers.new(type="BOOLEAN", name="bool 2")
+            bool_two.object = OBJ2
+            bool_two.operation = 'INTERSECT'
+            bpy.context.scene.objects.active = OBJ1
+            bpy.ops.object.modifier_apply (modifier='bool 2')
+            bpy.ops.object.select_all(action = 'DESELECT')
+            OBJ2.select = True
+            bpy.ops.object.delete()
+            bpy.context.scene.objects.active = OBJ1
+            OBJ1.select = True
+            vertices1 = OBJ1.data.vertices
+            #poczatek sprawdzania kolizji z pierwszym obiektem
+            list=[]
+            for v in vertices1:
+                #print (is_inside(mathutils.Vector(v.co), OBJ3))
+                #print (v.index)
+                if (is_inside(mathutils.Vector(OBJ3.matrix_world*v.co), OBJ3)==True):
+                    list.append(v.index)
+                if (is_inside(mathutils.Vector(OBJ4.matrix_world*v.co), OBJ4)==True):
+                    list.append(v.index)    
+                continue
+            #print ("Koniec liczenia")
             
-        edge_length = 0
-        for edge in _data.edges:
-            vert0 = _data.vertices[edge.vertices[0]].co
-            vert1 = _data.vertices[edge.vertices[1]].co
-            edge_length += (vert0-vert1).length
-        
-        edge_length = '{:.6f}'.format(edge_length)
-        #print(edge_length)
-        #print(OBJ1.matrix_world)
-        bpy.ops.object.convert(target="CURVE")
-        bpy.ops.object.scale_clear()
-        bpy.ops.object.select_all()
-        
-        MakeWeldFromCurve(OBJ1,edge_length,obje,matrix)
-        
-        return bpy.ops.weld.translate('INVOKE_DEFAULT')
+            bpy.ops.object.mode_set(mode = 'EDIT')
+            bm1 = bmesh.from_edit_mesh(OBJ1.data)
+            vertices2 = bm1.verts
+
+            for vert in vertices2:
+                vert.select=False
+                continue
+             
+            bm1.verts.ensure_lookup_table()    
+            for vert2 in list:
+               vertices2[vert2].select=True   
+            #koniec sprawdzania kolizji z pierwszym obiektem   
+             
+            bpy.ops.mesh.delete(type='VERT') # usuwanie wierzcholkow
+
+            bpy.ops.mesh.select_mode(type="EDGE")
+            for f in bm1.faces:
+                f.select=False
+            #bpy.ops.mesh.delete(type='FACE') # usuwanie wierzcholkow 
+
+            def search(mymesh):
+                    culprits=[]
+                    for e in mymesh.edges:
+                            e.select = False
+                            shared = 0
+                            for f in mymesh.faces:
+                                    for vf1 in f.verts:
+                                            if vf1 == e.verts[0]:
+                                                    for vf2 in f.verts:
+                                                            if vf2 == e.verts[1]:
+                                                                    shared = shared + 1
+                            if (shared > 2):
+                                    #Manifold
+                                    culprits.append(e)
+                                    e.select = True
+                            if (shared < 2):
+                                    #Open
+                                    culprits.append(e)
+                                    e.select = True
+                    return culprits
+
+            search(bm1)
+            for f in bm1.edges:
+                f.select=not f.select
+
+            bpy.ops.mesh.delete(type='EDGE') # usuwanie wielokątow    
+
+
+            #POPRAWKA DO SKRYPTU MANIFOLD - USUWANIE TROJKATOW PRZY KRAWEDZIACH
+            bpy.ops.mesh.select_mode(type="EDGE")
+
+            for e in bm1.edges:
+                e.select=False
+                shared=0
+                for v in e.verts:        
+                    for ed in v.link_edges:
+                        shared=shared+1        
+                if (shared==6):
+                    e.select=True  
+            bpy.ops.mesh.delete(type='EDGE') # usuwanie wielokątow 
+
+            for v in bm1.edges:
+                v.select=True
+            
+            bpy.ops.object.mode_set(mode = 'OBJECT')
+
+            _data = bpy.context.active_object.data
+                
+            edge_length = 0
+            for edge in _data.edges:
+                vert0 = _data.vertices[edge.vertices[0]].co
+                vert1 = _data.vertices[edge.vertices[1]].co
+                edge_length += (vert0-vert1).length
+            
+            edge_length = '{:.6f}'.format(edge_length)
+            #print(edge_length)
+            #print(OBJ1.matrix_world)
+            bpy.ops.object.convert(target="CURVE")
+            bpy.ops.object.scale_clear()
+            bpy.ops.object.select_all()
+            
+            MakeWeldFromCurve(OBJ1,edge_length,obje,matrix)
+            
+            return bpy.ops.weld.translate('INVOKE_DEFAULT')
 
 def altitude(point1, point2, pointn):
     edge1 = point2 - point1
