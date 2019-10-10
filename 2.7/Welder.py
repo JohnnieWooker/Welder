@@ -271,8 +271,7 @@ class OBJECT_OT_WeldButton(bpy.types.Operator):
                 bpy.ops.curve.radius_set(radius=1)
                 if bpy.context.scene.cyclic: bpy.ops.curve.cyclic_toggle()
                 bpy.ops.object.mode_set(mode='OBJECT')            
-                edge_length=CalculateCurveLength(obj)    
-                return{'FINISHED'}        
+                edge_length=CalculateCurveLength(obj)
                 matrix=obj.matrix_world  
                 MakeWeldFromCurve(obj,edge_length,obje,matrix) 
                 return bpy.ops.weld.translate('INVOKE_DEFAULT')
@@ -494,11 +493,19 @@ def addlenprop(object,length):
     object["CurveLen"]=length
 
 def CalculateCurveLength(curve):
+    bpy.ops.object.select_all(action='DESELECT')
+    bpy.context.scene.objects.active = curve
+    curve.select=True
+    bpy.ops.object.duplicate_move(OBJECT_OT_duplicate={"linked":False, "mode":'TRANSLATION'}, TRANSFORM_OT_translate={"value":(0, 0, 0), "constraint_axis":(False, False, False), "constraint_orientation":'GLOBAL', "mirror":False, "proportional":'DISABLED', "proportional_edit_falloff":'SMOOTH', "proportional_size":1, "snap":False, "snap_target":'CLOSEST', "snap_point":(0, 0, 0), "snap_align":False, "snap_normal":(0, 0, 0), "gpencil_strokes":False, "texture_space":False, "remove_on_cancel":False, "release_confirm":False, "use_accurate":False})
+    bpy.ops.object.convert(target='MESH')
+    bpy.ops.object.convert(target='CURVE')
+    curve=bpy.context.scene.objects.active
     cyclic=bpy.context.scene.cyclic
     matrix=curve.matrix_world
     edge_length = 0
     counter=0
     for s in curve.data.splines:
+        pointcount=len(s.points)
         for point in s.points:
             if counter>0:
                 p0=s.points[counter-1].co
@@ -506,11 +513,12 @@ def CalculateCurveLength(curve):
                 edge_length += (p0-p1).length
             counter=counter+1
         if cyclic:
-            p0=s.points[counter-1].co
+            p0=s.points[pointcount-1].co
             p1=s.points[0].co
             edge_length += (p0-p1).length      
          
-    edge_length = '{:.6f}'.format(edge_length)        
+    edge_length = '{:.6f}'.format(edge_length)    
+    bpy.ops.object.delete()    
     return(edge_length)
 
 def MakeWeldFromCurve(OBJ1,edge_length,obje,matrix):
