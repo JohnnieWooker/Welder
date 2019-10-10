@@ -29,7 +29,7 @@ from bpy_extras.view3d_utils import (
 bl_info = {
     "name": "Welder",
     "author": "Łukasz Hoffmann",
-    "version": (0,0, 5),
+    "version": (0,0, 6),
     "location": "View 3D > Object Mode > Tool Shelf",
     "blender": (2, 7, 9),
     "description": "Generate weld along the odge of intersection of two objects",
@@ -251,6 +251,31 @@ class OBJECT_OT_WeldButton(bpy.types.Operator):
         if (bpy.context.object.mode!='OBJECT'):
             self.report({'ERROR'}, 'Welding works only in object mode')
             return {'FINISHED'}
+        if (len(bpy.context.selected_objects)==1):
+            obj=bpy.context.selected_objects[0]
+            if (obj.type=='MESH' and len(obj.data.polygons)==0):
+                bpy.ops.object.convert(target='CURVE')
+                return{'FINISHED'}
+            if (obj.type=='CURVE'):
+                obje='' 
+                iconname=bpy.context.scene.my_thumbnails
+                if iconname=='icon_1.png': obje='Weld_1'
+                if iconname=='icon_2.png': obje='Weld_2'
+                if iconname=='icon_3.png': obje='Weld_3'
+                if iconname=='icon_4.png': obje='Weld_4'
+                if iconname=='icon_5.png': obje='Weld_5'
+                if obje=='': return {'FINISHED'}
+                bpy.context.scene.objects.active = obj
+                bpy.ops.object.mode_set(mode='EDIT')
+                bpy.ops.curve.select_all(action='SELECT')
+                bpy.ops.curve.radius_set(radius=1)
+                if bpy.context.scene.cyclic: bpy.ops.curve.cyclic_toggle()
+                bpy.ops.object.mode_set(mode='OBJECT')            
+                edge_length=CalculateCurveLength(obj)    
+                return{'FINISHED'}        
+                matrix=obj.matrix_world  
+                MakeWeldFromCurve(obj,edge_length,obje,matrix) 
+                return bpy.ops.weld.translate('INVOKE_DEFAULT')
         if (len(bpy.context.selected_objects)!=2):
             self.report({'ERROR'}, 'Select 2 objects or spline')
             return {'FINISHED'}
