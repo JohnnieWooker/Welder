@@ -109,7 +109,7 @@ class WelderDrawOperator(bpy.types.Operator):
             curve=bpy.context.scene.objects.active
             
             SimplifyCurve(curve,simplify_error)
-            edge_length=CalculateCurveLength(curve)            
+            edge_length=CalculateCurveLength(curve,bpy.context.scene.cyclic)            
             matrix=curve.matrix_world  
             MakeWeldFromCurve(curve,edge_length,self.obje,matrix)  
               
@@ -255,7 +255,6 @@ class OBJECT_OT_WeldButton(bpy.types.Operator):
             obj=bpy.context.selected_objects[0]
             if (obj.type=='MESH' and len(obj.data.polygons)==0):
                 bpy.ops.object.convert(target='CURVE')
-                return{'FINISHED'}
             if (obj.type=='CURVE'):
                 obje='' 
                 iconname=bpy.context.scene.my_thumbnails
@@ -269,12 +268,12 @@ class OBJECT_OT_WeldButton(bpy.types.Operator):
                 bpy.ops.object.mode_set(mode='EDIT')
                 bpy.ops.curve.select_all(action='SELECT')
                 bpy.ops.curve.radius_set(radius=1)
-                if bpy.context.scene.cyclic: bpy.ops.curve.cyclic_toggle()
                 bpy.ops.object.mode_set(mode='OBJECT')            
-                edge_length=CalculateCurveLength(obj)
+                edge_length=CalculateCurveLength(obj,obj.data.splines[0].use_cyclic_u)
                 matrix=obj.matrix_world  
                 MakeWeldFromCurve(obj,edge_length,obje,matrix) 
                 return bpy.ops.weld.translate('INVOKE_DEFAULT')
+            return {'FINISHED'}
         if (len(bpy.context.selected_objects)!=2):
             self.report({'ERROR'}, 'Select 2 objects or spline')
             return {'FINISHED'}
@@ -492,7 +491,7 @@ def addprop(object):
 def addlenprop(object,length):
     object["CurveLen"]=length
 
-def CalculateCurveLength(curve):
+def CalculateCurveLength(curve,cyclic):
     bpy.ops.object.select_all(action='DESELECT')
     bpy.context.scene.objects.active = curve
     curve.select=True
@@ -500,7 +499,6 @@ def CalculateCurveLength(curve):
     bpy.ops.object.convert(target='MESH')
     bpy.ops.object.convert(target='CURVE')
     curve=bpy.context.scene.objects.active
-    cyclic=bpy.context.scene.cyclic
     matrix=curve.matrix_world
     edge_length = 0
     counter=0

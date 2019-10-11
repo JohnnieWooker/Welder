@@ -30,7 +30,7 @@ from bpy_extras.view3d_utils import (
 bl_info = {
     "name": "Welder",
     "author": "Łukasz Hoffmann",
-    "version": (0,0, 5),
+    "version": (0,0, 6),
     "location": "View 3D > Object Mode > Tool Shelf",
     "blender": (2, 80, 0),
     "description": "Generate weld along the odge of intersection of two objects",
@@ -140,7 +140,7 @@ class OBJECT_OT_WelderDrawOperator(bpy.types.Operator):
             curve=bpy.context.view_layer.objects.active
             
             SimplifyCurve(curve,simplify_error)
-            edge_length=CalculateCurveLength(curve)
+            edge_length=CalculateCurveLength(curve,bpy.context.scene.cyclic)
             matrix=curve.matrix_world  
             MakeWeldFromCurve(curve,edge_length,self.obje,matrix)  
               
@@ -289,6 +289,29 @@ class OBJECT_OT_WeldButton(bpy.types.Operator):
     def execute(self, context):
         if (bpy.context.object.mode!='OBJECT'):
             self.report({'ERROR'}, 'Welding works only in object mode')
+            return {'FINISHED'}
+        if (len(bpy.context.selected_objects)==1):
+            obj=bpy.context.selected_objects[0]
+            if (obj.type=='MESH' and len(obj.data.polygons)==0):
+                bpy.ops.object.convert(target='CURVE')
+            if (obj.type=='CURVE'):
+                obje='' 
+                iconname=bpy.context.scene.my_thumbnails
+                if iconname=='icon_1.png': obje='Weld_1'
+                if iconname=='icon_2.png': obje='Weld_2'
+                if iconname=='icon_3.png': obje='Weld_3'
+                if iconname=='icon_4.png': obje='Weld_4'
+                if iconname=='icon_5.png': obje='Weld_5'
+                if obje=='': return {'FINISHED'}
+                bpy.context.view_layer.objects.active = obj
+                bpy.ops.object.mode_set(mode='EDIT')
+                bpy.ops.curve.select_all(action='SELECT')
+                bpy.ops.curve.radius_set(radius=1)
+                bpy.ops.object.mode_set(mode='OBJECT')            
+                edge_length=CalculateCurveLength(obj,obj.data.splines[0].use_cyclic_u)
+                matrix=obj.matrix_world  
+                MakeWeldFromCurve(obj,edge_length,obje,matrix) 
+                return bpy.ops.weld.translate('INVOKE_DEFAULT')
             return {'FINISHED'}
         if (len(bpy.context.selected_objects)!=2):
             self.report({'ERROR'}, 'Select 2 objects or spline')
@@ -518,12 +541,19 @@ def SimplifyCurve(obj,error):
 def addprop(object):    
     object["Weld"]="True"
 
-def CalculateCurveLength(curve):
-    cyclic=bpy.context.scene.cyclic
+def CalculateCurveLength(curve,cyclic):
+    bpy.ops.object.select_all(action='DESELECT')
+    bpy.context.view_layer.objects.active = curve
+    curve.select_set(True)
+    bpy.ops.object.duplicate()
+    bpy.ops.object.convert(target='MESH')
+    bpy.ops.object.convert(target='CURVE')
+    curve=bpy.context.view_layer.objects.active
     matrix=curve.matrix_world
     edge_length = 0
     counter=0
     for s in curve.data.splines:
+        pointcount=len(s.points)
         for point in s.points:
             if counter>0:
                 p0=s.points[counter-1].co
@@ -531,11 +561,12 @@ def CalculateCurveLength(curve):
                 edge_length += (p0-p1).length
             counter=counter+1
         if cyclic:
-            p0=s.points[counter-1].co
+            p0=s.points[pointcount-1].co
             p1=s.points[0].co
             edge_length += (p0-p1).length      
          
-    edge_length = '{:.6f}'.format(edge_length)        
+    edge_length = '{:.6f}'.format(edge_length)  
+    bpy.ops.object.delete()        
     return(edge_length)
 
 def MakeWeldFromCurve(OBJ1,edge_length,obje,matrix):
