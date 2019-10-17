@@ -4,6 +4,7 @@ johnniewooker@gmail.com
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
+    it under the terms of the GNU General Public License as published by
     the Free Software Foundation, either version 3 of the License, or
     (at your option) any later version.
 
@@ -72,6 +73,10 @@ class OBJECT_OT_WelderDrawOperator(bpy.types.Operator):
     bl_label = "Draw"    
     
     def modal(self, context, event):
+        if (context.area==None or bpy.context.object==None):
+            self.unregister_handlers(context)
+            bpy.context.scene.welddrawing=False
+            return {'CANCELLED'}    
         context.area.tag_redraw()        
         
         if event.type == 'LEFTMOUSE' and self.phase==0:
@@ -151,8 +156,6 @@ class OBJECT_OT_WelderDrawOperator(bpy.types.Operator):
         elif event.type in {'ESC'} and self.phase==0:
             self.unregister_handlers(context)
             bpy.context.scene.welddrawing=False
-            for km in self.list: km.active = True
-            for km in self.listy: km.active = True
             return {'CANCELLED'}
 
         return {'PASS_THROUGH'}
@@ -193,7 +196,7 @@ class OBJECT_OT_WelderDrawOperator(bpy.types.Operator):
             self.draw_event = context.window_manager.event_timer_add(0.1, window=context.window)
             return {'RUNNING_MODAL'}
         else:
-            fswitchkeymap(True)
+            switchkeymap(True)
             self.report({'WARNING'}, "View3D not found, cannot run operator")
             return {'CANCELLED'}
 

@@ -48,6 +48,11 @@ class WelderDrawOperator(bpy.types.Operator):
     bl_label = "Draw"   
     
     def modal(self, context, event):
+        if (context.area==None or bpy.context.object==None or context.space_data.type!='VIEW_3D'):
+            self.unregister_handlers(context)
+            bpy.context.scene.welddrawing=False
+            for km in self.list: km.active = True
+            return {'CANCELLED'}    
         context.area.tag_redraw()        
         
         if event.type == 'LEFTMOUSE' and self.phase==0:
