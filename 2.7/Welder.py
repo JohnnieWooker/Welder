@@ -141,6 +141,8 @@ class WelderDrawOperator(bpy.types.Operator):
         if self.obje=='': return {'FINISHED'}
         self.lmb = False
         self.initiated=False
+        if (bpy.context.object!=None):
+            if (bpy.context.object.mode!='OBJECT'): bpy.ops.object.mode_set(mode = 'OBJECT')
         bpy.ops.object.select_all(action='DESELECT')
         """
         if not context.active_object:
@@ -248,6 +250,9 @@ class OBJECT_OT_WeldButton(bpy.types.Operator):
     
     
     def execute(self, context):
+        if (bpy.context.object==None):
+            self.report({'ERROR'}, 'Invalid context or nothing selected')
+            return {'FINISHED'}    
         if (bpy.context.object.mode=='EDIT'):
             if (bpy.context.scene.objects.active.type=='CURVE'):
                 bpy.ops.object.mode_set(mode = 'OBJECT')
