@@ -29,7 +29,7 @@ from bpy_extras.view3d_utils import (
 bl_info = {
     "name": "Welder",
     "author": "Łukasz Hoffmann",
-    "version": (0,0, 6),
+    "version": (0,0, 7),
     "location": "View 3D > Object Mode > Tool Shelf",
     "blender": (2, 7, 9),
     "description": "Generate weld along the odge of intersection of two objects",
@@ -248,8 +248,26 @@ class OBJECT_OT_WeldButton(bpy.types.Operator):
     
     
     def execute(self, context):
+        if (bpy.context.object.mode=='EDIT'):
+            if (bpy.context.scene.objects.active.type=='CURVE'):
+                bpy.ops.object.mode_set(mode = 'OBJECT')
+            else:    
+                bpy.ops.mesh.duplicate()
+                bpy.ops.mesh.separate(type='SELECTED')
+                bpy.ops.object.mode_set(mode='OBJECT')
+                originobj=bpy.context.scene.objects.active
+                obj=bpy.context.selected_objects[0]
+                bpy.context.scene.objects.active = obj
+                originobj.select=False  
+                
+                if (obj.type=='MESH' and (len(obj.data.polygons)>0 or not iscontinuable(obj))):
+                    bpy.ops.object.delete()
+                    bpy.context.scene.objects.active=originobj
+                    bpy.ops.object.mode_set(mode='EDIT')
+                    self.report({'ERROR'}, 'Detected selected faces or not an edgeloop, aborting')
+                    return {'FINISHED'}                  
         if (bpy.context.object.mode!='OBJECT'):
-            self.report({'ERROR'}, 'Welding works only in object mode')
+            self.report({'ERROR'}, 'Welding works only in edit or object mode')
             return {'FINISHED'}
         if (len(bpy.context.selected_objects)==1):
             obj=bpy.context.selected_objects[0]
@@ -408,6 +426,17 @@ class OBJECT_OT_WeldButton(bpy.types.Operator):
             MakeWeldFromCurve(OBJ1,edge_length,obje,matrix)
             
             return bpy.ops.weld.translate('INVOKE_DEFAULT')
+
+def iscontinuable(obj):
+    continuable=True
+    bm = bmesh.new() 
+    bm.from_mesh( obj.data )
+    counter=0
+    for v in bm.verts:
+        if len(v.link_edges)>=3 or len(v.link_edges)==0: continuable=False
+        if len(v.link_edges)==1: counter=counter+1
+    if counter>2: continuable=False
+    return continuable
 
 def altitude(point1, point2, pointn):
     edge1 = point2 - point1
