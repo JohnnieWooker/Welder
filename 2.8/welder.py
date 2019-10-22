@@ -31,7 +31,7 @@ from bpy_extras.view3d_utils import (
 bl_info = {
     "name": "Welder",
     "author": "Łukasz Hoffmann",
-    "version": (0,0, 7),
+    "version": (0,0, 8),
     "location": "View 3D > Object Mode > Tool Shelf",
     "blender": (2, 80, 0),
     "description": "Generate weld along the odge of intersection of two objects",
@@ -292,29 +292,40 @@ class OBJECT_OT_WeldButton(bpy.types.Operator):
     bl_label = "Weld"   
  
     def execute(self, context):
+        preserve=True
+        objectstodel=bpy.context.selected_objects
         if (bpy.context.object==None):
             self.report({'ERROR'}, 'Invalid context or nothing selected')
             return {'FINISHED'}       
         if (bpy.context.object.mode=='EDIT'):
             if (bpy.context.view_layer.objects.active.type=='CURVE'):
                 bpy.ops.object.mode_set(mode = 'OBJECT')
-            else:    
-                bpy.ops.mesh.duplicate()
-                bpy.ops.mesh.separate(type='SELECTED')
-                bpy.ops.object.mode_set(mode='OBJECT')
-                originobj=bpy.context.view_layer.objects.active
-                obj=bpy.context.selected_objects[0]
-                for o in bpy.context.selected_objects:
-                    if o!=originobj: obj=o
-                bpy.context.view_layer.objects.active = obj
-                bpy.ops.object.select_all(action = 'DESELECT')
-                obj.select_set(True)
-                if (obj.type=='MESH' and (len(obj.data.polygons)>0 or not iscontinuable(obj))):
-                    bpy.ops.object.delete()
-                    bpy.context.view_layer.objects.active=originobj
-                    bpy.ops.object.mode_set(mode='EDIT')
-                    self.report({'ERROR'}, 'Detected selected faces or not an edgeloop, aborting')
-                    return {'FINISHED'}      
+            else:
+                if bpy.context.view_layer.objects.active.type=='MESH':
+                    if absoluteselection(bpy.context.view_layer.objects.active):                         
+                        preserve=False
+                        objectstodel=bpy.context.selected_objects
+                    else: 
+                        if (not isanythingselected(bpy.context.view_layer.objects.active)):
+                            self.report({'ERROR'}, 'Nothing selected, aborting')
+                            return {'FINISHED'}    
+                        bpy.ops.mesh.duplicate()
+                        bpy.ops.mesh.separate(type='SELECTED')
+                        bpy.ops.object.mode_set(mode='OBJECT')
+                        originobj=bpy.context.view_layer.objects.active
+                        obj=bpy.context.selected_objects[0]
+                        for o in bpy.context.selected_objects:
+                            if o!=originobj: obj=o
+                        bpy.context.view_layer.objects.active = obj
+                        originobj.select_set(False)
+                        
+                        if (obj.type=='MESH' and (len(obj.data.polygons)>0 or not iscontinuable(obj))):
+                            bpy.ops.object.delete()
+                            bpy.context.view_layer.objects.active=originobj
+                            bpy.ops.object.mode_set(mode='EDIT')
+                            self.report({'ERROR'}, 'Detected wrong selectiong or not an edgeloop, aborting')
+                            return {'FINISHED'}   
+                           
         if (bpy.context.object.mode!='OBJECT'):
             self.report({'ERROR'}, 'Welding works only in edit or object mode')
             return {'FINISHED'}
@@ -473,10 +484,23 @@ class OBJECT_OT_WeldButton(bpy.types.Operator):
             bpy.ops.object.scale_clear()
             bpy.ops.object.select_all()
     	
+            if not preserve:
+                remove_obj(OBJ3.name)
+                remove_obj(OBJ4.name)
+    
             MakeWeldFromCurve(OBJ1,edge_length,obje,matrix)
             
             return bpy.ops.weld.translate('INVOKE_DEFAULT')
             #return {'FINISHED'}
+
+def isanythingselected(obj):
+    bm=bmesh.from_edit_mesh(obj.data)
+    vertices=[v.index for v in bm.verts if v.select]
+    faces=[f.index for f in bm.faces if f.select]
+    edges=[e.index for e in bm.edges if e.select]
+    selection=len(vertices)+len(faces)+len(edges)
+    if selection==0: return False
+    else: return True
 
 def remove_obj(obj):
     selected=bpy.context.selected_objects
@@ -489,6 +513,84 @@ def remove_obj(obj):
             o.select_set(True)
         except:
             continue
+
+def is_point_inside(point,ob):
+    axes = [ mathutils.Vector((1,0,0)) ]
+    outside = False
+    for axis in axes:
+        mat = ob.matrix_world
+        mat.invert()
+        #mat = mathutils.Matrix(ob.matrix_world).invert()
+        orig = mat @ point
+        mat.invert()
+        count = 0
+        while True:
+            hit,location,normal,index = ob.ray_cast(orig,orig+axis*10000.0)
+            if index == -1: break
+            count += 1
+            orig = location + axis*0.00001
+        if count%2 == 0:
+            outside = True
+            break
+    return not outside
+
+def mesh_intersecting(obj1,obj2):
+    intersection=False
+    for v in obj1.data.vertices:
+        if is_point_inside(v.co,obj2):
+            intersection=True
+            break;
+    return intersection
+
+def absoluteselection(obj):
+    bpy.ops.object.mode_set(mode = 'OBJECT')
+    bpy.ops.object.join()
+    bpy.ops.object.mode_set(mode='EDIT')
+    bm=bmesh.from_edit_mesh(obj.data)
+    selected_old_indices=[v.index for v in bm.verts if v.select]
+    selected_old_faces=[f.index for f in bm.faces if f.select]
+    selected_old_edges=[e.index for e in bm.edges if e.select]
+    selected_old=len(selected_old_indices)
+    if selected_old==0: return False
+    bpy.ops.mesh.select_more()
+    selected_new=len([v.index for v in bm.verts if v.select])
+    if selected_new==selected_old:
+        bpy.ops.mesh.duplicate()
+        bpy.ops.mesh.separate(type='SELECTED')        
+        bpy.ops.object.mode_set(mode='OBJECT')        
+        obj_new=bpy.context.selected_objects[0]
+        for o in bpy.context.selected_objects:
+            if o!=bpy.context.view_layer.objects.active:
+                obj_new=o
+        bpy.ops.object.select_all(action = 'DESELECT')            
+        bpy.context.view_layer.objects.active=obj_new
+        obj_new.select_set(True)
+        bpy.ops.object.mode_set(mode='EDIT')
+        bpy.ops.mesh.separate(type='LOOSE')
+        bpy.ops.object.mode_set(mode='OBJECT')
+        bpy.context.view_layer.objects.active.select_set(True)
+        bpy.ops.object.mode_set(mode='OBJECT')
+        if len(bpy.context.selected_objects)>1:
+            bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
+            if mesh_intersecting(bpy.context.selected_objects[0],bpy.context.selected_objects[1]):
+                return True, None, None
+        bpy.context.view_layer.objects.active.select_set(True)
+        obj_new.select_set(False)
+        bpy.ops.object.delete()
+        obj_new.select_set(True)
+        bpy.context.view_layer.objects.active=obj_new
+        bpy.ops.object.delete()
+    for f in bm.faces:
+        if f.index in selected_old_faces: f.select=True
+        else: f.select=False
+    for f in bm.edges:
+        if f.index in selected_old_edges: f.select=True
+        else: f.select=False
+    for v in bm.verts:
+        if v.index in selected_old_indices: 
+            v.select=True
+        else: v.select=False           
+    return False    
 
 def iscontinuable(obj):
     continuable=True
