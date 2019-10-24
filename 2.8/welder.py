@@ -73,7 +73,9 @@ class OBJECT_OT_WelderDrawOperator(bpy.types.Operator):
     bl_label = "Draw"    
     
     def modal(self, context, event):
-        if (context.area==None or bpy.context.object==None):
+        if self.drawended:
+            return {'FINISHED'}
+        if (context.area==None):
             self.unregister_handlers(context)
             bpy.context.scene.welddrawing=False
             return {'CANCELLED'}    
@@ -160,7 +162,8 @@ class OBJECT_OT_WelderDrawOperator(bpy.types.Operator):
 
         return {'PASS_THROUGH'}
 
-    def invoke(self, context, event):   
+    def invoke(self, context, event):  
+        self.drawended=False 
         switchkeymap(False)         
         self.phase=0
         self.obje='' 
@@ -205,6 +208,7 @@ class OBJECT_OT_WelderDrawOperator(bpy.types.Operator):
         bpy.types.SpaceView3D.draw_handler_remove(self._handle, 'WINDOW')
         #context.window_manager.event_timer_remove(self.draw_event)
         self.draw_event  = None
+        self.drawended=True
 
 def switchkeymap(state):
     x = bpy.context.window_manager.keyconfigs[2].keymaps['3D View'].keymap_items
@@ -810,7 +814,7 @@ class PANEL_PT_WelderToolsPanel(bpy.types.Panel):
         row.template_icon_view(context.scene, "my_thumbnails")
         row.enabled=not bpy.context.scene.welddrawing
         row=self.layout.row()
-        self.layout.operator("weld.weld")
+        row.operator("weld.weld")
         row.enabled=not bpy.context.scene.welddrawing
         row=self.layout.row()
         row.operator("weld.draw")
