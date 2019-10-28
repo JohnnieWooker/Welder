@@ -40,8 +40,11 @@ bl_info = {
 
 preview_collections = {}
 curve_node_mapping = {}
+bpy.types.Scene.shapebuttonname=bpy.props.StringProperty(name="Shape button name", default="Modify")
 bpy.types.Scene.welddrawing=bpy.props.BoolProperty(
         name="welddrawing", description="welddrawing", default=False)
+bpy.types.Scene.shapemodified=bpy.props.BoolProperty(
+        name="shapemodified", description="shapemodified", default=False)        
 simplify_error=0.001
 
 class WelderDrawOperator(bpy.types.Operator):
@@ -457,6 +460,16 @@ class OBJECT_OT_WeldButton(bpy.types.Operator):
             
             return bpy.ops.weld.translate('INVOKE_DEFAULT')
 
+class OBJECT_OT_ShapeModifyButton(bpy.types.Operator):
+    bl_idname = "weld.shape"   
+    bl_label = "Modify"
+    def execute(self, context):
+        bpy.context.scene.shapebuttonname
+        bpy.context.scene.shapemodified=not bpy.context.scene.shapemodified
+        if bpy.context.scene.shapemodified: bpy.context.scene.shapebuttonname="Apply"
+        else: bpy.context.scene.shapebuttonname="Modify"
+        return{'FINISHED'}
+
 def isanythingselected(obj):
     bm=bmesh.from_edit_mesh(obj.data)
     vertices=[v.index for v in bm.verts if v.select]
@@ -799,11 +812,13 @@ def register():
     )
     bpy.utils.register_class(WeldTransformModal)
     bpy.utils.register_class(OBJECT_OT_WeldButton)
+    bpy.utils.register_class(OBJECT_OT_ShapeModifyButton)
     bpy.utils.register_class(WelderDrawOperator)
 
 def unregister():
     bpy.utils.unregister_class(WeldTransformModal)
     bpy.utils.unregister_class(OBJECT_OT_WeldButton)
+    bpy.utils.unregister_class(OBJECT_OT_ShapeModifyButton)
     bpy.utils.unregister_class(WelderDrawOperator)
 
 register()
@@ -838,18 +853,22 @@ class WelderSubPanelDynamic(bpy.types.Panel):
         if (context.active_object != None):
             return bpy.context.scene.objects.active.get('Weld') is not None
         else: return False
-    def draw(self, context):        
+    def draw(self, context):  
         row=self.layout.row()
-        self.layout.template_curve_mapping(WeldCurveData('WeldCurve',self), "mapping")   
+        row.operator("weld.shape", text=bpy.context.scene.shapebuttonname)
+        box = self.layout.box() 
+        box.enabled= bpy.context.scene.shapemodified 
+        box.row()
+        box.template_curve_mapping(WeldCurveData('WeldCurve',self), "mapping")   
     
 def register():
     bpy.types.Scene.cyclic=bpy.props.BoolProperty(name="cyclic", description="cyclic", default=True)
     bpy.utils.register_class(WelderToolsPanel)
-    #bpy.utils.register_class(WelderSubPanelDynamic)
+    bpy.utils.register_class(WelderSubPanelDynamic)
 
 def unregister():
     bpy.utils.unregister_class(WelderToolsPanel)    
-    #bpy.utils.unregister_class(WelderSubPanelDynamic)         
+    bpy.utils.unregister_class(WelderSubPanelDynamic)         
 
 if __name__ == "__main__":
     register()
