@@ -40,6 +40,7 @@ bl_info = {
 
 preview_collections = {}
 curve_node_mapping = {}
+bpy.types.Scene.curvename=bpy.props.StringProperty(name="curvename", default="RGB Curves")
 bpy.types.Scene.shapebuttonname=bpy.props.StringProperty(name="Shape button name", default="Modify")
 bpy.types.Scene.welddrawing=bpy.props.BoolProperty(
         name="welddrawing", description="welddrawing", default=False)
@@ -275,7 +276,6 @@ class OBJECT_OT_WeldButton(bpy.types.Operator):
                     if absoluteselection(bpy.context.scene.objects.active):                         
                         preserve=False
                         objectstodel=bpy.context.selected_objects
-                        for o in objectstodel: print(o.name)
                     else:
                         if (not isanythingselected(bpy.context.scene.objects.active)):
                             self.report({'ERROR'}, 'Nothing selected, aborting')
@@ -466,9 +466,33 @@ class OBJECT_OT_ShapeModifyButton(bpy.types.Operator):
     def execute(self, context):
         bpy.context.scene.shapebuttonname
         bpy.context.scene.shapemodified=not bpy.context.scene.shapemodified
-        if bpy.context.scene.shapemodified: bpy.context.scene.shapebuttonname="Apply"
+        if bpy.context.scene.shapemodified:             
+            bpy.context.scene.shapebuttonname="Apply"
+            bpy.ops.weld.shapemodal()            
         else: bpy.context.scene.shapebuttonname="Modify"
         return{'FINISHED'}
+
+class ShapeModifyModal(bpy.types.Operator):
+    bl_idname = "weld.shapemodal"
+    bl_label = "Weld shape modify modal"
+    _timer = None
+    def modal(self, context, event):
+        if event.type in {'RIGHTMOUSE', 'ESC'} or not bpy.context.scene.shapemodified:
+            self.cancel(context)
+            return {'CANCELLED'}
+        if event.type == 'TIMER':
+            c=bpy.data.node_groups['WeldCurveData'].nodes[bpy.context.scene.curvename].mapping.curves[3]
+            for point in c.points:
+                print(point.location)
+        return {'PASS_THROUGH'}
+    def cancel(self, context):
+        wm = context.window_manager
+        wm.event_timer_remove(self._timer)    
+    def execute(self, context):
+        wm = context.window_manager
+        self._timer = wm.event_timer_add(0.1, context.window)
+        wm.modal_handler_add(self)
+        return {'RUNNING_MODAL'}    
 
 def isanythingselected(obj):
     bm=bmesh.from_edit_mesh(obj.data)
@@ -811,12 +835,14 @@ def register():
     items=generate_previews(),
     )
     bpy.utils.register_class(WeldTransformModal)
+    bpy.utils.register_class(ShapeModifyModal)
     bpy.utils.register_class(OBJECT_OT_WeldButton)
     bpy.utils.register_class(OBJECT_OT_ShapeModifyButton)
     bpy.utils.register_class(WelderDrawOperator)
 
 def unregister():
     bpy.utils.unregister_class(WeldTransformModal)
+    bpy.utils.unregister_class(ShapeModifyModal)
     bpy.utils.unregister_class(OBJECT_OT_WeldButton)
     bpy.utils.unregister_class(OBJECT_OT_ShapeModifyButton)
     bpy.utils.unregister_class(WelderDrawOperator)
