@@ -40,7 +40,6 @@ bl_info = {
 
 preview_collections = {}
 curve_node_mapping = {}
-bpy.types.Scene.curvename=bpy.props.StringProperty(name="curvename", default="RGB Curves")
 bpy.types.Scene.shapebuttonname=bpy.props.StringProperty(name="Shape button name", default="Modify")
 bpy.types.Scene.welddrawing=bpy.props.BoolProperty(
         name="welddrawing", description="welddrawing", default=False)
@@ -481,7 +480,7 @@ class ShapeModifyModal(bpy.types.Operator):
             self.cancel(context)
             return {'CANCELLED'}
         if event.type == 'TIMER':
-            c=bpy.data.node_groups['WeldCurveData'].nodes[bpy.context.scene.curvename].mapping.curves[3]
+            c=bpy.data.node_groups['WeldCurveData'].nodes[curve_node_mapping["WeldCurve"]].mapping.curves[3]
             for point in c.points:
                 print(point.location)
         return {'PASS_THROUGH'}
