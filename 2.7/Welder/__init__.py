@@ -884,7 +884,7 @@ class WelderSubPanelDynamic(bpy.types.Panel):
         box = self.layout.box() 
         box.enabled= bpy.context.scene.shapemodified 
         box.row()
-        box.template_curve_mapping(WeldCurveData('WeldCurve',self), "mapping")   
+        if bpy.context.scene.shapemodified: box.template_curve_mapping(WeldCurveData('WeldCurve',self), "mapping")   
     
 def register():
     bpy.types.Scene.cyclic=bpy.props.BoolProperty(name="cyclic", description="cyclic", default=True)
