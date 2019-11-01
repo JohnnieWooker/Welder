@@ -488,6 +488,9 @@ class ShapeModifyModal(bpy.types.Operator):
         wm = context.window_manager
         wm.event_timer_remove(self._timer)    
     def execute(self, context):
+        obj=bpy.context.scene.objects.active
+        if ("shape_points" not in obj):
+            obj["shape_points"]=[0,0.5,1,0.5]
         wm = context.window_manager
         self._timer = wm.event_timer_add(0.1, context.window)
         wm.modal_handler_add(self)
@@ -674,7 +677,7 @@ def SimplifyCurve(obj,error):
     if bpy.context.scene.cyclic: bpy.ops.curve.cyclic_toggle()
     bpy.ops.object.mode_set(mode = 'OBJECT')    
 
-def addprop(object):    
+def addprop(object):   
     object["Weld"]="True"
 
 def addlenprop(object,length):
