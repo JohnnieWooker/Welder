@@ -489,13 +489,48 @@ class ShapeModifyModal(bpy.types.Operator):
         wm.event_timer_remove(self._timer)    
     def execute(self, context):
         obj=bpy.context.scene.objects.active
+        lattice_presence=False
+        lattice=None
         if ("shape_points" not in obj):
-            obj["shape_points"]=[0,0.5,1,0.5]
+            obj["shape_points"]=[0,0.5,1,0.5]         
+        #lattice modifier check       
+        for m in obj.modifiers:
+            if (m.type=='LATTICE'):
+                lattice_presence=True
+                lattice=m
+        if not lattice_presence:
+            lattice=obj.modifiers.new(name="Lattice", type='LATTICE') 
+        #lattice object addition
+        if lattice.object==None:
+            print(obj.location)
+            bpy.ops.object.add(type='LATTICE', view_align=False, enter_editmode=False, location=obj.location, layers=(True, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False))
+            obj_lattice=bpy.context.scene.objects.active
+            obj_lattice.rotation_euler=obj.rotation_euler
+            obj_lattice.rotation_euler[0]=obj_lattice.rotation_euler[0]+0.785398163
+            obj_lattice.dimensions=(obj.dimensions[0]/obj.scale[0],obj.dimensions[1]/obj.scale[1],obj.dimensions[2]/obj.scale[2])
+            #make also location of lattice at welds, center of mass
+            lattice.object=obj_lattice        
+             
+        bpy.context.scene.objects.active=obj   
+        makemodfirst(lattice)
+
+        #change lattice matrix 
+        obj_lattice.data.points_u=1
+        obj_lattice.data.points_v=1
+        obj_lattice.data.points_w=2
+     
         wm = context.window_manager
         self._timer = wm.event_timer_add(0.1, context.window)
         wm.modal_handler_add(self)
         return {'RUNNING_MODAL'}    
 
+def makemodfirst(modifier):
+    modname=modifier.name
+    obj=bpy.context.scene.objects.active
+    for m in obj.modifiers:
+        if obj.modifiers[0]==modifier: break
+        else: bpy.ops.object.modifier_move_up(modifier=modname)  
+        
 def isanythingselected(obj):
     bm=bmesh.from_edit_mesh(obj.data)
     vertices=[v.index for v in bm.verts if v.select]
