@@ -508,7 +508,7 @@ class ShapeModifyModal(bpy.types.Operator):
             obj_lattice.rotation_euler=obj.rotation_euler
             obj_lattice.rotation_euler[0]=obj_lattice.rotation_euler[0]+0.785398163
             obj_lattice.dimensions=(obj.dimensions[0]/obj.scale[0],obj.dimensions[1]/obj.scale[1],obj.dimensions[2]/obj.scale[2])
-            #make also location of lattice at welds, center of mass
+            obj_lattice.location=getcenterofmass(obj)
             lattice.object=obj_lattice        
              
         bpy.context.scene.objects.active=obj   
@@ -523,6 +523,18 @@ class ShapeModifyModal(bpy.types.Operator):
         self._timer = wm.event_timer_add(0.1, context.window)
         wm.modal_handler_add(self)
         return {'RUNNING_MODAL'}    
+
+def getcenterofmass(obj):
+    centerpoint=(0,0,0)
+    sumx=0
+    sumy=0
+    sumz=0
+    for v in obj.data.vertices:
+        sumx=sumx+v.co[0]
+        sumy=sumy+v.co[1]
+        sumz=sumz+v.co[2]
+    centerpoint=(sumx/len(obj.data.vertices),sumy/len(obj.data.vertices),sumz/len(obj.data.vertices))    
+    return centerpoint
 
 def makemodfirst(modifier):
     modname=modifier.name
