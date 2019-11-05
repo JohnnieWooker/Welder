@@ -467,8 +467,13 @@ class OBJECT_OT_ShapeModifyButton(bpy.types.Operator):
         bpy.context.scene.shapemodified=not bpy.context.scene.shapemodified
         if bpy.context.scene.shapemodified:             
             bpy.context.scene.shapebuttonname="Apply"
+            WeldNodeTree()
+            WeldCurveData('WeldCurve',self)
             bpy.ops.weld.shapemodal()            
-        else: bpy.context.scene.shapebuttonname="Modify"
+        else: 
+            
+            bpy.context.scene.shapebuttonname="Modify"
+            #removenode()
         return{'FINISHED'}
 
 class ShapeModifyModal(bpy.types.Operator):
@@ -533,7 +538,6 @@ class ShapeModifyModal(bpy.types.Operator):
      
         #define starting curve
         counter=0
-        c=bpy.data.node_groups['WeldCurveData'].nodes[curve_node_mapping["WeldCurve"]].mapping.curves[3]
         '''
         for p in c.points:
             p.location=(p.location[0],0.5)
@@ -554,6 +558,11 @@ class ShapeModifyModal(bpy.types.Operator):
         self._timer = wm.event_timer_add(0.1, context.window)
         wm.modal_handler_add(self)
         return {'RUNNING_MODAL'}    
+
+def removenode():
+    for group in bpy.data.node_groups:
+        if group.name=="WeldCurveData":
+            bpy.data.node_groups.remove(group)
 
 def getcenterofmass(obj):
     centerpoint=(0,0,0)
