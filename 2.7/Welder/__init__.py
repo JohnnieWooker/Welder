@@ -18,7 +18,7 @@ import os
 from mathutils import Vector
 from mathutils.bvhtree import BVHTree
 import bpy.utils.previews
-from math import (sin,pow,)
+from math import (sin,pow,floor)
 from bpy.props import StringProperty, EnumProperty
 from bpy_extras.view3d_utils import (
     region_2d_to_vector_3d,
@@ -480,9 +480,19 @@ class ShapeModifyModal(bpy.types.Operator):
             self.cancel(context)
             return {'CANCELLED'}
         if event.type == 'TIMER':
+            '''
+            counter=0
+            print(self.obj["shape_points"][0])
+            for i in range(len(bpy.data.node_groups['WeldCurveData'].nodes[curve_node_mapping["WeldCurve"]].mapping.curves[3].points)):
+                bpy.data.node_groups['WeldCurveData'].nodes[curve_node_mapping["WeldCurve"]].mapping.curves[3].points[i].location=(self.obj["shape_points"][counter],self.obj["shape_points"][counter+1])
+                counter=counter+2
+                
+            print(bpy.data.node_groups['WeldCurveData'].nodes[curve_node_mapping["WeldCurve"]].mapping.curves[3].points[0].location)
             c=bpy.data.node_groups['WeldCurveData'].nodes[curve_node_mapping["WeldCurve"]].mapping.curves[3]
-            for point in c.points:
-                print(point.location)
+            #point=self.obj["shape_points"]
+            #for point in c.points:
+                #point=(0,0)
+            '''    
         return {'PASS_THROUGH'}
     def cancel(self, context):
         wm = context.window_manager
@@ -509,8 +519,10 @@ class ShapeModifyModal(bpy.types.Operator):
             obj_lattice.rotation_euler[0]=obj_lattice.rotation_euler[0]+0.785398163
             obj_lattice.dimensions=(obj.dimensions[0]/obj.scale[0],obj.dimensions[1]/obj.scale[1],obj.dimensions[2]/obj.scale[2])
             obj_lattice.location=getcenterofmass(obj)
-            lattice.object=obj_lattice        
-             
+            lattice.object=obj_lattice    
+        obj_lattice=lattice.object          
+        self.obj=obj
+        self.obj_lattice=obj_lattice   
         bpy.context.scene.objects.active=obj   
         makemodfirst(lattice)
 
@@ -519,6 +531,23 @@ class ShapeModifyModal(bpy.types.Operator):
         obj_lattice.data.points_v=1
         obj_lattice.data.points_w=2
      
+        #define starting curve
+        counter=0
+        c=bpy.data.node_groups['WeldCurveData'].nodes[curve_node_mapping["WeldCurve"]].mapping.curves[3]
+        
+        for p in c.points:
+            p.location=(p.location[0],0.5)
+        for i in range(floor(len(obj["shape_points"])/2)):
+            print(counter)
+            #bpy.data.node_groups['WeldCurveData'].nodes[curve_node_mapping["WeldCurve"]].mapping.curves[3].points.new(0,0.5)
+            #bpy.data.node_groups['WeldCurveData'].nodes[curve_node_mapping["WeldCurve"]].mapping.curves[3].points.new(1,0.5)   
+            print(bpy.data.node_groups['WeldCurveData'].nodes[curve_node_mapping["WeldCurve"]].mapping.curves[3].points)
+            #bpy.data.node_groups['WeldCurveData'].nodes[curve_node_mapping["WeldCurve"]].mapping.curves[3].points[i].location=(self.obj["shape_points"][counter],self.obj["shape_points"][counter+1])
+            #counter=counter+2
+            #bpy.data.node_groups['WeldCurveData'].nodes[curve_node_mapping["WeldCurve"]].mapping.update
+        
+        
+        
         wm = context.window_manager
         self._timer = wm.event_timer_add(0.1, context.window)
         wm.modal_handler_add(self)
@@ -529,10 +558,11 @@ def getcenterofmass(obj):
     sumx=0
     sumy=0
     sumz=0
+    matrix=obj.matrix_world
     for v in obj.data.vertices:
-        sumx=sumx+v.co[0]
-        sumy=sumy+v.co[1]
-        sumz=sumz+v.co[2]
+        sumx=sumx+(matrix*v.co)[0]
+        sumy=sumy+(matrix*v.co)[1]
+        sumz=sumz+(matrix*v.co)[2]
     centerpoint=(sumx/len(obj.data.vertices),sumy/len(obj.data.vertices),sumz/len(obj.data.vertices))    
     return centerpoint
 
