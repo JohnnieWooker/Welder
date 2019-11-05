@@ -534,10 +534,11 @@ class ShapeModifyModal(bpy.types.Operator):
         #define starting curve
         counter=0
         c=bpy.data.node_groups['WeldCurveData'].nodes[curve_node_mapping["WeldCurve"]].mapping.curves[3]
-        
+        '''
         for p in c.points:
             p.location=(p.location[0],0.5)
-        for i in range(floor(len(obj["shape_points"])/2)):
+            '''
+        for i in range(floor(len(obj["shape_points"])/2)):            
             print(counter)
             #bpy.data.node_groups['WeldCurveData'].nodes[curve_node_mapping["WeldCurve"]].mapping.curves[3].points.new(0,0.5)
             #bpy.data.node_groups['WeldCurveData'].nodes[curve_node_mapping["WeldCurve"]].mapping.curves[3].points.new(1,0.5)   
@@ -546,8 +547,9 @@ class ShapeModifyModal(bpy.types.Operator):
             #counter=counter+2
             #bpy.data.node_groups['WeldCurveData'].nodes[curve_node_mapping["WeldCurve"]].mapping.update
         
-        
-        
+        bpy.data.node_groups['WeldCurveData'].nodes[curve_node_mapping["WeldCurve"]].mapping.curves[3].points[0].location=(0,0.5)
+        bpy.data.node_groups['WeldCurveData'].nodes[curve_node_mapping["WeldCurve"]].mapping.curves[3].points[-1].location=(1,0.5)
+        bpy.data.node_groups['WeldCurveData'].nodes[curve_node_mapping["WeldCurve"]].mapping.update()
         wm = context.window_manager
         self._timer = wm.event_timer_add(0.1, context.window)
         wm.modal_handler_add(self)
@@ -902,7 +904,10 @@ def WeldNodeTree():
 def WeldCurveData(curve_name,self):
     if curve_name not in curve_node_mapping:    
         cn = WeldNodeTree().new('ShaderNodeRGBCurve')     
-        curve_node_mapping[curve_name] = cn.name
+        curve_node_mapping[curve_name] = cn.name 
+   # bpy.data.node_groups['WeldCurveData'].nodes[curve_node_mapping["WeldCurve"]].mapping.curves[3].points[0].location
+   # bpy.data.node_groups['WeldCurveData'].nodes[curve_node_mapping["WeldCurve"]].mapping.curves[3].points.new(1,0.5)   
+   # bpy.data.node_groups['WeldCurveData'].nodes[curve_node_mapping["WeldCurve"]].mapping.curves[3].points.new(0,0.5)   
     return WeldNodeTree()[curve_node_mapping[curve_name]]
    
 def register():
