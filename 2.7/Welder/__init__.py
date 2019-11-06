@@ -485,19 +485,13 @@ class ShapeModifyModal(bpy.types.Operator):
             self.cancel(context)
             return {'CANCELLED'}
         if event.type == 'TIMER':
-            '''
             counter=0
-            print(self.obj["shape_points"][0])
+            list=[]
             for i in range(len(bpy.data.node_groups['WeldCurveData'].nodes[curve_node_mapping["WeldCurve"]].mapping.curves[3].points)):
-                bpy.data.node_groups['WeldCurveData'].nodes[curve_node_mapping["WeldCurve"]].mapping.curves[3].points[i].location=(self.obj["shape_points"][counter],self.obj["shape_points"][counter+1])
+                list.append(bpy.data.node_groups['WeldCurveData'].nodes[curve_node_mapping["WeldCurve"]].mapping.curves[3].points[i].location[0])
+                list.append(bpy.data.node_groups['WeldCurveData'].nodes[curve_node_mapping["WeldCurve"]].mapping.curves[3].points[i].location[1])
                 counter=counter+2
-                
-            print(bpy.data.node_groups['WeldCurveData'].nodes[curve_node_mapping["WeldCurve"]].mapping.curves[3].points[0].location)
-            c=bpy.data.node_groups['WeldCurveData'].nodes[curve_node_mapping["WeldCurve"]].mapping.curves[3]
-            #point=self.obj["shape_points"]
-            #for point in c.points:
-                #point=(0,0)
-            '''    
+            self.obj["shape_points"]=list
         return {'PASS_THROUGH'}
     def cancel(self, context):
         wm = context.window_manager
@@ -530,30 +524,30 @@ class ShapeModifyModal(bpy.types.Operator):
         self.obj_lattice=obj_lattice   
         bpy.context.scene.objects.active=obj   
         makemodfirst(lattice)
-
         #change lattice matrix 
         obj_lattice.data.points_u=1
         obj_lattice.data.points_v=1
-        obj_lattice.data.points_w=2
-     
-        #define starting curve
-        counter=0
+        obj_lattice.data.points_w=2     
+        #define starting curve        
         '''
         for p in c.points:
             p.location=(p.location[0],0.5)
-            '''
-        for i in range(floor(len(obj["shape_points"])/2)):            
-            print(counter)
-            #bpy.data.node_groups['WeldCurveData'].nodes[curve_node_mapping["WeldCurve"]].mapping.curves[3].points.new(0,0.5)
-            #bpy.data.node_groups['WeldCurveData'].nodes[curve_node_mapping["WeldCurve"]].mapping.curves[3].points.new(1,0.5)   
-            print(bpy.data.node_groups['WeldCurveData'].nodes[curve_node_mapping["WeldCurve"]].mapping.curves[3].points)
-            #bpy.data.node_groups['WeldCurveData'].nodes[curve_node_mapping["WeldCurve"]].mapping.curves[3].points[i].location=(self.obj["shape_points"][counter],self.obj["shape_points"][counter+1])
-            #counter=counter+2
-            #bpy.data.node_groups['WeldCurveData'].nodes[curve_node_mapping["WeldCurve"]].mapping.update
-        
+            '''  
         bpy.data.node_groups['WeldCurveData'].nodes[curve_node_mapping["WeldCurve"]].mapping.curves[3].points[0].location=(0,0.5)
         bpy.data.node_groups['WeldCurveData'].nodes[curve_node_mapping["WeldCurve"]].mapping.curves[3].points[-1].location=(1,0.5)
         bpy.data.node_groups['WeldCurveData'].nodes[curve_node_mapping["WeldCurve"]].mapping.update()
+        if (len(obj["shape_points"])>3):
+            bpy.data.node_groups['WeldCurveData'].nodes[curve_node_mapping["WeldCurve"]].mapping.curves[3].points[0].location=(obj["shape_points"][0],obj["shape_points"][1])
+            bpy.data.node_groups['WeldCurveData'].nodes[curve_node_mapping["WeldCurve"]].mapping.curves[3].points[-1].location=(obj["shape_points"][-2],obj["shape_points"][-1])
+            if (len(obj["shape_points"])>5 and len(obj["shape_points"])%2==0):
+                counter=2
+                for i in range(floor((len(obj["shape_points"])-4)/2)): 
+                    comparision_tuple=(bpy.data.node_groups['WeldCurveData'].nodes[curve_node_mapping["WeldCurve"]].mapping.curves[3].points[i+1].location[0],bpy.data.node_groups['WeldCurveData'].nodes[curve_node_mapping["WeldCurve"]].mapping.curves[3].points[i+1].location[1])
+                    if (comparision_tuple!=(obj["shape_points"][counter],obj["shape_points"][counter+1])):
+                        bpy.data.node_groups['WeldCurveData'].nodes[curve_node_mapping["WeldCurve"]].mapping.curves[3].points.new(obj["shape_points"][counter],obj["shape_points"][counter+1])
+                    counter=counter+2
+            bpy.data.node_groups['WeldCurveData'].nodes[curve_node_mapping["WeldCurve"]].mapping.update() 
+        #starting curve defined according to custom property of weld object   
         wm = context.window_manager
         self._timer = wm.event_timer_add(0.1, context.window)
         wm.modal_handler_add(self)
