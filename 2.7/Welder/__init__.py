@@ -46,6 +46,7 @@ bpy.types.Scene.welddrawing=bpy.props.BoolProperty(
 bpy.types.Scene.shapemodified=bpy.props.BoolProperty(
         name="shapemodified", description="shapemodified", default=False)        
 simplify_error=0.001
+lattice_error_thresh=0.0001
 
 class WelderDrawOperator(bpy.types.Operator):
     bl_idname = "weld.draw"
@@ -485,6 +486,7 @@ class ShapeModifyModal(bpy.types.Operator):
             self.cancel(context)
             return {'CANCELLED'}
         if event.type == 'TIMER':
+            #storing data inside custom property
             counter=0
             list=[]
             for i in range(len(bpy.data.node_groups['WeldCurveData'].nodes[curve_node_mapping["WeldCurve"]].mapping.curves[3].points)):
@@ -492,6 +494,9 @@ class ShapeModifyModal(bpy.types.Operator):
                 list.append(bpy.data.node_groups['WeldCurveData'].nodes[curve_node_mapping["WeldCurve"]].mapping.curves[3].points[i].location[1])
                 counter=counter+2
             self.obj["shape_points"]=list
+            #translating curve position into world position
+            translatepoints(self.obj_lattice,matrixtolist(list),lattice_error_thresh)
+                        
         return {'PASS_THROUGH'}
     def cancel(self, context):
         wm = context.window_manager
@@ -552,6 +557,29 @@ class ShapeModifyModal(bpy.types.Operator):
         self._timer = wm.event_timer_add(0.1, context.window)
         wm.modal_handler_add(self)
         return {'RUNNING_MODAL'}    
+
+def matrixtolist(matrix):
+    list=[]
+    x=0
+    y=0 
+    for i in range(len(matrix)):
+        if (i%2==0): 
+            x=matrix[i]
+        if (i%2==1): 
+            y=matrix[i]
+        if (i%2==1):list.append(Vector((x,y)))    
+    return list
+
+def translatepoints(lattice,points,error):    
+    for i in range(len(points)):
+        points[i][1]=points[i][1]-0.5
+        points[i][1]=points[i][1]*-1
+        #points[i][1]=points[i][1]*-(0.72393)   
+        points[i][0]=points[i][0]-0.5
+    lattice.data.points_w=len(points)        
+    for i in range(lattice.data.points_w):
+        if (abs(abs(lattice.data.points[i].co_deform.y)-abs(points[i][1]))>error): lattice.data.points[i].co_deform.y=points[i][1]
+        if (abs(abs(lattice.data.points[i].co_deform.z)-abs(points[i][0]))>error):lattice.data.points[i].co_deform.z=points[i][0]
 
 def removenode():
     for group in bpy.data.node_groups:
