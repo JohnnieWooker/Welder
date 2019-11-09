@@ -474,7 +474,7 @@ class OBJECT_OT_ShapeModifyButton(bpy.types.Operator):
         else: 
             
             bpy.context.scene.shapebuttonname="Modify"
-            #removenode()
+            removenode()
         return{'FINISHED'}
 
 class ShapeModifyModal(bpy.types.Operator):
@@ -499,6 +499,9 @@ class ShapeModifyModal(bpy.types.Operator):
                         
         return {'PASS_THROUGH'}
     def cancel(self, context):
+        removenode()
+        bpy.context.scene.shapemodified=False
+        bpy.context.scene.shapebuttonname="Modify"
         wm = context.window_manager
         wm.event_timer_remove(self._timer)    
     def execute(self, context):
@@ -582,6 +585,7 @@ def translatepoints(lattice,points,error):
         if (abs(abs(lattice.data.points[i].co_deform.z)-abs(points[i][0]))>error):lattice.data.points[i].co_deform.z=points[i][0]
 
 def removenode():
+    curve_node_mapping.clear()
     for group in bpy.data.node_groups:
         if group.name=="WeldCurveData":
             bpy.data.node_groups.remove(group)
@@ -1001,6 +1005,7 @@ class WelderSubPanelDynamic(bpy.types.Panel):
         box.enabled= bpy.context.scene.shapemodified 
         box.row()
         if bpy.context.scene.shapemodified: box.template_curve_mapping(WeldCurveData('WeldCurve',self), "mapping")   
+        else: removenode()
     
 def register():
     bpy.types.Scene.cyclic=bpy.props.BoolProperty(name="cyclic", description="cyclic", default=True)
