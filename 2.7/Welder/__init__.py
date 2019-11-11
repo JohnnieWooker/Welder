@@ -30,7 +30,7 @@ from bpy_extras.view3d_utils import (
 bl_info = {
     "name": "Welder",
     "author": "Łukasz Hoffmann",
-    "version": (0,0, 9),
+    "version": (1,0, 0),
     "location": "View 3D > Object Mode > Tool Shelf",
     "blender": (2, 7, 9),
     "description": "Generate weld along the odge of intersection of two objects",
@@ -522,9 +522,10 @@ class ShapeModifyModal(bpy.types.Operator):
             print(obj.location)
             bpy.ops.object.add(type='LATTICE', view_align=False, enter_editmode=False, location=obj.location, layers=(True, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False))
             obj_lattice=bpy.context.scene.objects.active
+            #obj_lattice.dimensions=(obj.dimensions[0]/obj.scale[0],obj.dimensions[1]/obj.scale[1],obj.dimensions[2]/obj.scale[2])
+            obj_lattice.dimensions=(obj.dimensions[0],obj.dimensions[1],obj.dimensions[2])
             obj_lattice.rotation_euler=obj.rotation_euler
             obj_lattice.rotation_euler[0]=obj_lattice.rotation_euler[0]+0.785398163
-            obj_lattice.dimensions=(obj.dimensions[0]/obj.scale[0],obj.dimensions[1]/obj.scale[1],obj.dimensions[2]/obj.scale[2])
             obj_lattice.location=getcenterofmass(obj)
             lattice.object=obj_lattice    
         obj_lattice=lattice.object          
