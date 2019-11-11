@@ -30,14 +30,13 @@ from bpy_extras.view3d_utils import (
 bl_info = {
     "name": "Welder",
     "author": "Łukasz Hoffmann",
-    "version": (1,0, 0),
+    "version": (1,0, 1),
     "location": "View 3D > Object Mode > Tool Shelf",
     "blender": (2, 7, 9),
     "description": "Generate weld along the odge of intersection of two objects",
     "warning": "",
     "category": "Object",
 	}
-
 preview_collections = {}
 curve_node_mapping = {}
 bpy.types.Scene.shapebuttonname=bpy.props.StringProperty(name="Shape button name", default="Modify")
@@ -507,7 +506,10 @@ class ShapeModifyModal(bpy.types.Operator):
     def execute(self, context):
         obj=bpy.context.scene.objects.active
         lattice_presence=False
-        lattice=None
+        lattice=None 
+        dimensions=obj.dimensions       
+        if ("Dimensions" in obj):
+            dimensions=obj["Dimensions"]
         if ("shape_points" not in obj):
             obj["shape_points"]=[0,0.5,1,0.5]         
         #lattice modifier check       
@@ -518,15 +520,16 @@ class ShapeModifyModal(bpy.types.Operator):
         if not lattice_presence:
             lattice=obj.modifiers.new(name="Lattice", type='LATTICE') 
         #lattice object addition
-        if lattice.object==None:
-            print(obj.location)
+        if lattice.object==None:  
             bpy.ops.object.add(type='LATTICE', view_align=False, enter_editmode=False, location=obj.location, layers=(True, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False, False))
             obj_lattice=bpy.context.scene.objects.active
-            #obj_lattice.dimensions=(obj.dimensions[0]/obj.scale[0],obj.dimensions[1]/obj.scale[1],obj.dimensions[2]/obj.scale[2])
-            obj_lattice.dimensions=(obj.dimensions[0],obj.dimensions[1],obj.dimensions[2])
+            hidemods(obj,False)  
+            print(dimensions)
             obj_lattice.rotation_euler=obj.rotation_euler
             obj_lattice.rotation_euler[0]=obj_lattice.rotation_euler[0]+0.785398163
+            obj_lattice.dimensions=(dimensions[0]*obj.scale[0],dimensions[1]*obj.scale[1],dimensions[2]*obj.scale[2])
             obj_lattice.location=getcenterofmass(obj)
+            hidemods(obj,True)  
             lattice.object=obj_lattice    
         obj_lattice=lattice.object          
         self.obj=obj
@@ -561,6 +564,10 @@ class ShapeModifyModal(bpy.types.Operator):
         self._timer = wm.event_timer_add(0.1, context.window)
         wm.modal_handler_add(self)
         return {'RUNNING_MODAL'}    
+
+def hidemods(obj,hide):
+    for m in obj.modifiers:
+        m.show_viewport=hide
 
 def matrixtolist(matrix):
     list=[]
@@ -844,6 +851,7 @@ def MakeWeldFromCurve(OBJ1,edge_length,obje,matrix):
         directory=directory)
     print(filepath)    
     OBJ_WELD=bpy.context.selected_objects[0]
+    OBJ_WELD["Dimensions"]=OBJ_WELD.dimensions
     OBJ_WELD.matrix_world=matrix
     addprop(OBJ_WELD)
     array = OBJ_WELD.modifiers.new(type="ARRAY", name="array")
