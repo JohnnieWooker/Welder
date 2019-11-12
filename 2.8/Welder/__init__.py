@@ -497,6 +497,32 @@ class OBJECT_OT_WeldButton(bpy.types.Operator):
             return bpy.ops.weld.translate('INVOKE_DEFAULT')
             #return {'FINISHED'}
 
+def removenode():
+    curve_node_mapping.clear()
+    for group in bpy.data.node_groups:
+        if group.name=="WeldCurveData":
+            bpy.data.node_groups.remove(group)
+
+def getcenterofmass(obj):
+    centerpoint=(0,0,0)
+    sumx=0
+    sumy=0
+    sumz=0
+    matrix=obj.matrix_world
+    for v in obj.data.vertices:
+        sumx=sumx+(matrix*v.co)[0]
+        sumy=sumy+(matrix*v.co)[1]
+        sumz=sumz+(matrix*v.co)[2]
+    centerpoint=(sumx/len(obj.data.vertices),sumy/len(obj.data.vertices),sumz/len(obj.data.vertices))    
+    return centerpoint
+
+def makemodfirst(modifier):
+    modname=modifier.name
+    obj=bpy.context.view_layer.objects.active
+    for m in obj.modifiers:
+        if obj.modifiers[0]==modifier: break
+        else: bpy.ops.object.modifier_move_up(modifier=modname)  
+
 def isanythingselected(obj):
     bm=bmesh.from_edit_mesh(obj.data)
     vertices=[v.index for v in bm.verts if v.select]
@@ -802,6 +828,21 @@ def bvhtree_from_object(self, context, object):
     bvhtree = BVHTree.FromBMesh(bm)
     return bvhtree
 
+def WeldNodeTree():
+    if 'WeldCurveData' not in bpy.data.node_groups:
+        ng = bpy.data.node_groups.new('WeldCurveData', 'ShaderNodeTree')
+        #ng.fake_user = True
+    return bpy.data.node_groups['WeldCurveData'].nodes
+
+def WeldCurveData(curve_name,self):
+    if curve_name not in curve_node_mapping:    
+        cn = WeldNodeTree().new('ShaderNodeRGBCurve')     
+        curve_node_mapping[curve_name] = cn.name 
+   # bpy.data.node_groups['WeldCurveData'].nodes[curve_node_mapping["WeldCurve"]].mapping.curves[3].points[0].location
+   # bpy.data.node_groups['WeldCurveData'].nodes[curve_node_mapping["WeldCurve"]].mapping.curves[3].points.new(1,0.5)   
+   # bpy.data.node_groups['WeldCurveData'].nodes[curve_node_mapping["WeldCurve"]].mapping.curves[3].points.new(0,0.5)   
+    return WeldNodeTree()[curve_node_mapping[curve_name]]
+
 class PANEL_PT_WelderToolsPanel(bpy.types.Panel):
     bl_label = "Welder"
     bl_idname = "OBJECT_PT_Welder"
@@ -821,10 +862,30 @@ class PANEL_PT_WelderToolsPanel(bpy.types.Panel):
         row.enabled=not bpy.context.scene.welddrawing
         row=self.layout.row()
         row.prop(context.scene, "cyclic")
+        
+class PANEL_PT_WelderSubPanelDynamic(bpy.types.Panel):        
+    bl_label = "Shape"
+    bl_space_type = "VIEW_3D"
+    bl_region_type = "TOOLS"
+    bl_category = "Welder"
+    @classmethod
+    def poll(cls, context):
+        if (context.active_object != None):
+            return bpy.context.view_layer.objects.active.get('Weld') is not None
+        else: return False
+    def draw(self, context):  
+        row=self.layout.row()
+        row.operator("weld.shape", text=bpy.context.scene.shapebuttonname)
+        box = self.layout.box() 
+        box.enabled= bpy.context.scene.shapemodified 
+        box.row()
+        if bpy.context.scene.shapemodified: box.template_curve_mapping(WeldCurveData('WeldCurve',self), "mapping")   
+        else: removenode()
              
 classes =(
 OBJECT_OT_WeldButton,
 PANEL_PT_WelderToolsPanel,
+PANEL_PT_WelderSubPanelDynamic,
 OBJECT_OT_WeldTransformModal,
 OBJECT_OT_WelderDrawOperator
 )
