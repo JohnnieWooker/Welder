@@ -20,7 +20,7 @@ import mathutils
 import os 
 from mathutils import Vector
 import bpy.utils.previews
-from math import (sin,pow,)
+from math import (sin,pow,floor)
 from bpy.props import StringProperty, EnumProperty
 from bpy_extras.view3d_utils import (
     region_2d_to_vector_3d,
@@ -31,7 +31,7 @@ from bpy_extras.view3d_utils import (
 bl_info = {
     "name": "Welder",
     "author": "Łukasz Hoffmann",
-    "version": (0,0, 9),
+    "version": (1,0, 2),
     "location": "View 3D > Object Mode > Tool Shelf",
     "blender": (2, 80, 0),
     "description": "Generate weld along the odge of intersection of two objects",
@@ -58,9 +58,14 @@ def generate_previews():
 
 bpy.types.Scene.welddrawing=bpy.props.BoolProperty(
     name="welddrawing", description="welddrawing", default=False)
+bpy.types.Scene.shapemodified=bpy.props.BoolProperty(
+    name="shapemodified", description="shapemodified", default=False)     
 preview_collections = {}
+curve_node_mapping = {}
+bpy.types.Scene.shapebuttonname=bpy.props.StringProperty(name="Shape button name", default="Modify")
 pcoll = bpy.utils.previews.new()
 simplify_error=0.001
+lattice_error_thresh=0.0001
 images_path = pcoll.images_location = os.path.join(os.path.dirname(__file__), "welder_images")
 pcoll.images_location = bpy.path.abspath(images_path)
 preview_collections["thumbnail_previews"] = pcoll
@@ -230,17 +235,19 @@ class OBJECT_OT_WeldTransformModal(bpy.types.Operator):
             if (self.phase==1):                
                 self.offset = (self._initial_mouse - Vector((event.mouse_x, event.mouse_y, 0.0))) * 0.02
                 multiplificator=(self.offset).length
-                #print(multiplificator)
-                if(multiplificator<1):multiplificator=1            
-                self.OBJ_WELD.scale[0]=multiplificator
-                self.OBJ_WELD.scale[1]=multiplificator
-                self.OBJ_WELD.scale[2]=multiplificator
-                self.array=self.OBJ_WELD.modifiers["array"]                
-                self.array.count=int(self.old_count/multiplificator)+1
+                if(multiplificator<1):multiplificator=1   
+                for i in range(len(self.OBJ_WELD)):
+                    if len(self.array)==len(self.OBJ_WELD):           
+                        self.OBJ_WELD[i].scale[0]=multiplificator
+                        self.OBJ_WELD[i].scale[1]=multiplificator
+                        self.OBJ_WELD[i].scale[2]=multiplificator
+                        self.array[i]=self.OBJ_WELD[i].modifiers["array"]                
+                        self.array[i].count=int(self.old_count[i]/multiplificator)+1
             if (self.phase==2):
                 self.offset = (self._initial_mouse - Vector((event.mouse_x, event.mouse_y, 0.0))) * 0.02
                 multiplificator=(self.offset).length
-                self.OBJ_WELD.rotation_euler[0]=multiplificator
+                for i in range(len(self.OBJ_WELD)):
+                    self.OBJ_WELD[i].rotation_euler[0]=multiplificator
         elif event.type == 'LEFTMOUSE' and event.value in {'RELEASE'}:    
             if (self.phase==2):
                 bpy.context.scene.welddrawing=False
@@ -251,24 +258,27 @@ class OBJECT_OT_WeldTransformModal(bpy.types.Operator):
                 return {'RUNNING_MODAL'} 
         elif event.type in {'RIGHTMOUSE', 'ESC'} and event.value in {'RELEASE'}:
             if (self.phase==2):
-                self.OBJ_WELD.rotation_euler[0]=0    
+                for i in range(len(self.OBJ_WELD)):
+                    self.OBJ_WELD[i].rotation_euler[0]=0    
                 bpy.context.scene.welddrawing=False
                 return {'CANCELLED'}
             if (self.phase==1):
-                self.OBJ_WELD.scale[0]=1
-                self.OBJ_WELD.scale[1]=1
-                self.OBJ_WELD.scale[2]=1
-                self.array=self.OBJ_WELD.modifiers["array"]
-                self.array.count=self.old_count
+                for i in range(len(self.OBJ_WELD)):
+                    if len(self.array)==len(self.OBJ_WELD):   
+                        self.OBJ_WELD[i].scale[0]=1
+                        self.OBJ_WELD[i].scale[1]=1
+                        self.OBJ_WELD[i].scale[2]=1
+                        self.array[i]=self.OBJ_WELD[i].modifiers["array"]
+                        self.array[i].count=self.old_count[i]
                 self.phase=2
                 self._initial_mouse = Vector((event.mouse_x, event.mouse_y, 0.0))
                 return {'RUNNING_MODAL'}             
         return {'RUNNING_MODAL'}
     def invoke(self, context, event):
         self._initial_mouse = Vector((event.mouse_x, event.mouse_y, 0.0))
-        self.OBJ_WELD=bpy.context.selected_objects[0]
-        self.array=self.OBJ_WELD.modifiers["array"]
-        self.old_count=self.array.count
+        self.OBJ_WELD=bpy.context.selected_objects
+        self.array=[m.modifiers["array"] for m in self.OBJ_WELD]
+        self.old_count=[a.count for a in self.array]
         self.phase=1
         if context.space_data.type == 'VIEW_3D':
             context.window_manager.modal_handler_add(self)
@@ -297,11 +307,13 @@ class OBJECT_OT_WeldButton(bpy.types.Operator):
  
     def execute(self, context):
         preserve=True
+        edit=False
         objectstodel=bpy.context.selected_objects
         if (bpy.context.object==None):
             self.report({'ERROR'}, 'Invalid context or nothing selected')
             return {'FINISHED'}       
         if (bpy.context.object.mode=='EDIT'):
+            edit=True
             if (bpy.context.view_layer.objects.active.type=='CURVE'):
                 bpy.ops.object.mode_set(mode = 'OBJECT')
             else:
@@ -322,7 +334,9 @@ class OBJECT_OT_WeldButton(bpy.types.Operator):
                             if o!=originobj: obj=o
                         bpy.context.view_layer.objects.active = obj
                         originobj.select_set(False)
-                        
+                        bpy.ops.object.mode_set(mode='EDIT')
+                        bpy.ops.mesh.separate(type='LOOSE')
+                        bpy.ops.object.mode_set(mode='OBJECT')
                         if (obj.type=='MESH' and (len(obj.data.polygons)>0 or not iscontinuable(obj))):
                             bpy.ops.object.delete()
                             bpy.context.view_layer.objects.active=originobj
@@ -333,28 +347,38 @@ class OBJECT_OT_WeldButton(bpy.types.Operator):
         if (bpy.context.object.mode!='OBJECT'):
             self.report({'ERROR'}, 'Welding works only in edit or object mode')
             return {'FINISHED'}
-        if (len(bpy.context.selected_objects)==1):
-            obj=bpy.context.selected_objects[0]
-            if (obj.type=='MESH' and len(obj.data.polygons)==0):
-                bpy.ops.object.convert(target='CURVE')
-            if (obj.type=='CURVE'):
-                obje='' 
-                iconname=bpy.context.scene.my_thumbnails
-                if iconname=='icon_1.png': obje='Weld_1'
-                if iconname=='icon_2.png': obje='Weld_2'
-                if iconname=='icon_3.png': obje='Weld_3'
-                if iconname=='icon_4.png': obje='Weld_4'
-                if iconname=='icon_5.png': obje='Weld_5'
-                if obje=='': return {'FINISHED'}
-                bpy.context.view_layer.objects.active = obj
-                bpy.ops.object.mode_set(mode='EDIT')
-                bpy.ops.curve.select_all(action='SELECT')
-                bpy.ops.curve.radius_set(radius=1)
-                bpy.ops.object.mode_set(mode='OBJECT')            
-                edge_length=CalculateCurveLength(obj,obj.data.splines[0].use_cyclic_u)
-                matrix=obj.matrix_world  
-                MakeWeldFromCurve(obj,edge_length,obje,matrix) 
-                return bpy.ops.weld.translate('INVOKE_DEFAULT')
+        if (len(bpy.context.selected_objects)>0 and edit):
+            obj=bpy.context.selected_objects
+            bpy.ops.object.select_all(action = 'DESELECT')
+            for o in obj:
+                o.select_set(True)
+                bpy.context.view_layer.objects.active = o
+                if (o.type=='MESH' and len(o.data.polygons)==0):
+                    bpy.ops.object.convert(target='CURVE')
+                    bpy.ops.object.select_all(action = 'DESELECT')
+            obje='' 
+            iconname=bpy.context.scene.my_thumbnails
+            if iconname=='icon_1.png': obje='Weld_1'
+            if iconname=='icon_2.png': obje='Weld_2'
+            if iconname=='icon_3.png': obje='Weld_3'
+            if iconname=='icon_4.png': obje='Weld_4'
+            if iconname=='icon_5.png': obje='Weld_5'
+            if obje=='': return {'FINISHED'}   
+            welds=[] 
+            for o in obj:   
+                if (o.type=='CURVE'):                    
+                    bpy.context.view_layer.objects.active = o
+                    bpy.ops.object.mode_set(mode='EDIT')
+                    bpy.ops.curve.select_all(action='SELECT')
+                    bpy.ops.curve.radius_set(radius=1)
+                    bpy.ops.object.mode_set(mode='OBJECT')            
+                    edge_length=CalculateCurveLength(o,o.data.splines[0].use_cyclic_u)
+                    matrix=o.matrix_world  
+                    welds.append(MakeWeldFromCurve(o,edge_length,obje,matrix))
+            for o in welds:   
+                o.select_set(True)                    
+                bpy.context.view_layer.objects.active = o        
+            return bpy.ops.weld.translate('INVOKE_DEFAULT')
             return {'FINISHED'}
         if (len(bpy.context.selected_objects)!=2):
             self.report({'ERROR'}, 'Select 2 objects or spline')
@@ -497,6 +521,138 @@ class OBJECT_OT_WeldButton(bpy.types.Operator):
             return bpy.ops.weld.translate('INVOKE_DEFAULT')
             #return {'FINISHED'}
 
+class OBJECT_OT_ShapeModifyButton(bpy.types.Operator):
+    bl_idname = "weld.shape"   
+    bl_label = "Modify"
+    def execute(self, context):
+        bpy.context.scene.shapebuttonname
+        bpy.context.scene.shapemodified=not bpy.context.scene.shapemodified
+        if bpy.context.scene.shapemodified:             
+            bpy.context.scene.shapebuttonname="Apply"
+            WeldNodeTree()
+            WeldCurveData('WeldCurve',self)
+            bpy.ops.weld.shapemodal()            
+        else:             
+            bpy.context.scene.shapebuttonname="Modify"
+            removenode()
+        return{'FINISHED'}
+
+class OBJECT_OT_ShapeModifyModal(bpy.types.Operator):
+    bl_idname = "weld.shapemodal"
+    bl_label = "Weld shape modify modal"
+    _timer = None
+    def modal(self, context, event):
+        if event.type in {'RIGHTMOUSE', 'ESC'} or not bpy.context.scene.shapemodified:
+            self.cancel(context)
+            return {'CANCELLED'}
+        if event.type == 'TIMER':
+            #storing data inside custom property
+            counter=0
+            list=[]
+            for i in range(len(bpy.data.node_groups['WeldCurveData'].nodes[curve_node_mapping["WeldCurve"]].mapping.curves[3].points)):
+                list.append(bpy.data.node_groups['WeldCurveData'].nodes[curve_node_mapping["WeldCurve"]].mapping.curves[3].points[i].location[0])
+                list.append(bpy.data.node_groups['WeldCurveData'].nodes[curve_node_mapping["WeldCurve"]].mapping.curves[3].points[i].location[1])
+                counter=counter+2
+            self.obj["shape_points"]=list
+            #translating curve position into world position
+            translatepoints(self.obj_lattice,matrixtolist(list),lattice_error_thresh)
+                        
+        return {'PASS_THROUGH'}
+    def cancel(self, context):
+        removenode()
+        bpy.context.scene.shapemodified=False
+        bpy.context.scene.shapebuttonname="Modify"
+        wm = context.window_manager
+        wm.event_timer_remove(self._timer)    
+    def execute(self, context):
+        obj=bpy.context.view_layer.objects.active
+        lattice_presence=False
+        lattice=None 
+        dimensions=obj.dimensions       
+        if ("Dimensions" in obj):
+            dimensions=obj["Dimensions"]
+        if ("shape_points" not in obj):
+            obj["shape_points"]=[0,0.5,1,0.5]         
+        #lattice modifier check       
+        for m in obj.modifiers:
+            if (m.type=='LATTICE'):
+                lattice_presence=True
+                lattice=m
+        if not lattice_presence:
+            lattice=obj.modifiers.new(name="Lattice", type='LATTICE') 
+        #lattice object addition
+        if lattice.object==None:  
+            bpy.ops.object.add(type='LATTICE', align='VIEW', enter_editmode=False, location=obj.location,)
+            obj_lattice=bpy.context.view_layer.objects.active
+            hidemods(obj,False)  
+            print(dimensions)
+            obj_lattice.rotation_euler=obj.rotation_euler
+            obj_lattice.rotation_euler[0]=obj_lattice.rotation_euler[0]+0.785398163
+            obj_lattice.dimensions=(dimensions[0]*obj.scale[0],dimensions[1]*obj.scale[1],dimensions[2]*obj.scale[2])
+            obj_lattice.location=getcenterofmass(obj)
+            hidemods(obj,True)  
+            lattice.object=obj_lattice    
+        obj_lattice=lattice.object          
+        self.obj=obj
+        self.obj_lattice=obj_lattice   
+        bpy.context.view_layer.objects.active=obj   
+        makemodfirst(lattice)
+        #change lattice matrix 
+        obj_lattice.data.points_u=1
+        obj_lattice.data.points_v=1
+        obj_lattice.data.points_w=2     
+        #define starting curve        
+        '''
+        for p in c.points:
+            p.location=(p.location[0],0.5)
+            '''  
+        bpy.data.node_groups['WeldCurveData'].nodes[curve_node_mapping["WeldCurve"]].mapping.curves[3].points[0].location=(0,0.5)
+        bpy.data.node_groups['WeldCurveData'].nodes[curve_node_mapping["WeldCurve"]].mapping.curves[3].points[-1].location=(1,0.5)
+        bpy.data.node_groups['WeldCurveData'].nodes[curve_node_mapping["WeldCurve"]].mapping.update()
+        if (len(obj["shape_points"])>3):
+            bpy.data.node_groups['WeldCurveData'].nodes[curve_node_mapping["WeldCurve"]].mapping.curves[3].points[0].location=(obj["shape_points"][0],obj["shape_points"][1])
+            bpy.data.node_groups['WeldCurveData'].nodes[curve_node_mapping["WeldCurve"]].mapping.curves[3].points[-1].location=(obj["shape_points"][-2],obj["shape_points"][-1])
+            if (len(obj["shape_points"])>5 and len(obj["shape_points"])%2==0):
+                counter=2
+                for i in range(floor((len(obj["shape_points"])-4)/2)): 
+                    comparision_tuple=(bpy.data.node_groups['WeldCurveData'].nodes[curve_node_mapping["WeldCurve"]].mapping.curves[3].points[i+1].location[0],bpy.data.node_groups['WeldCurveData'].nodes[curve_node_mapping["WeldCurve"]].mapping.curves[3].points[i+1].location[1])
+                    if (comparision_tuple!=(obj["shape_points"][counter],obj["shape_points"][counter+1])):
+                        bpy.data.node_groups['WeldCurveData'].nodes[curve_node_mapping["WeldCurve"]].mapping.curves[3].points.new(obj["shape_points"][counter],obj["shape_points"][counter+1])
+                    counter=counter+2
+            bpy.data.node_groups['WeldCurveData'].nodes[curve_node_mapping["WeldCurve"]].mapping.update() 
+        #starting curve defined according to custom property of weld object   
+        wm = context.window_manager
+        self._timer = wm.event_timer_add(0.1, window=context.window)
+        wm.modal_handler_add(self)
+        return {'RUNNING_MODAL'}    
+
+def hidemods(obj,hide):
+    for m in obj.modifiers:
+        m.show_viewport=hide
+
+def matrixtolist(matrix):
+    list=[]
+    x=0
+    y=0 
+    for i in range(len(matrix)):
+        if (i%2==0): 
+            x=matrix[i]
+        if (i%2==1): 
+            y=matrix[i]
+        if (i%2==1):list.append(Vector((x,y)))    
+    return list
+
+def translatepoints(lattice,points,error):    
+    for i in range(len(points)):
+        points[i][1]=points[i][1]-0.5
+        points[i][1]=points[i][1]*-1
+        #points[i][1]=points[i][1]*-(0.72393)   
+        points[i][0]=points[i][0]-0.5
+    lattice.data.points_w=len(points)        
+    for i in range(lattice.data.points_w):
+        if (abs(abs(lattice.data.points[i].co_deform.y)-abs(points[i][1]))>error): lattice.data.points[i].co_deform.y=points[i][1]
+        if (abs(abs(lattice.data.points[i].co_deform.z)-abs(points[i][0]))>error):lattice.data.points[i].co_deform.z=points[i][0]
+
 def removenode():
     curve_node_mapping.clear()
     for group in bpy.data.node_groups:
@@ -510,9 +666,9 @@ def getcenterofmass(obj):
     sumz=0
     matrix=obj.matrix_world
     for v in obj.data.vertices:
-        sumx=sumx+(matrix*v.co)[0]
-        sumy=sumy+(matrix*v.co)[1]
-        sumz=sumz+(matrix*v.co)[2]
+        sumx=sumx+(matrix@v.co)[0]
+        sumy=sumy+(matrix@v.co)[1]
+        sumz=sumz+(matrix@v.co)[2]
     centerpoint=(sumx/len(obj.data.vertices),sumy/len(obj.data.vertices),sumz/len(obj.data.vertices))    
     return centerpoint
 
@@ -630,7 +786,7 @@ def iscontinuable(obj):
     for v in bm.verts:
         if len(v.link_edges)>=3 or len(v.link_edges)==0: continuable=False
         if len(v.link_edges)==1: counter=counter+1
-    if counter>2: continuable=False
+    #if counter>2: continuable=False
     return continuable
 
 def altitude(point1, point2, pointn):
@@ -759,6 +915,7 @@ def MakeWeldFromCurve(OBJ1,edge_length,obje,matrix):
         directory=directory)
     #print(filepath)    
     OBJ_WELD=bpy.context.selected_objects[0]
+    OBJ_WELD["Dimensions"]=OBJ_WELD.dimensions
     OBJ_WELD.matrix_world=matrix
     addprop(OBJ_WELD)
     array = OBJ_WELD.modifiers.new(type="ARRAY", name="array")
@@ -780,7 +937,8 @@ def MakeWeldFromCurve(OBJ1,edge_length,obje,matrix):
     #bpy.ops.object.modifier_apply(modifier='curve')
     bpy.ops.object.select_all(action = 'DESELECT')
     OBJ_WELD.select_set(True)  
-    bpy.context.view_layer.objects.active = OBJ_WELD      
+    bpy.context.view_layer.objects.active = OBJ_WELD    
+    return(OBJ_WELD)  
     #bpy.ops.object.delete() 
 
 def draw_callback_px(self, context):
@@ -865,14 +1023,18 @@ class PANEL_PT_WelderToolsPanel(bpy.types.Panel):
         
 class PANEL_PT_WelderSubPanelDynamic(bpy.types.Panel):        
     bl_label = "Shape"
+    bl_idname = "OBJECT_PT_Welder_dynamic"
     bl_space_type = "VIEW_3D"
-    bl_region_type = "TOOLS"
+    bl_region_type = "UI"
     bl_category = "Welder"
+
+    
     @classmethod
     def poll(cls, context):
         if (context.active_object != None):
             return bpy.context.view_layer.objects.active.get('Weld') is not None
         else: return False
+    
     def draw(self, context):  
         row=self.layout.row()
         row.operator("weld.shape", text=bpy.context.scene.shapebuttonname)
@@ -887,7 +1049,9 @@ OBJECT_OT_WeldButton,
 PANEL_PT_WelderToolsPanel,
 PANEL_PT_WelderSubPanelDynamic,
 OBJECT_OT_WeldTransformModal,
-OBJECT_OT_WelderDrawOperator
+OBJECT_OT_WelderDrawOperator,
+OBJECT_OT_ShapeModifyButton,
+OBJECT_OT_ShapeModifyModal
 )
 register, unregister = bpy.utils.register_classes_factory(classes) 
 bpy.types.Scene.cyclic=bpy.props.BoolProperty(name="cyclic", description="cyclic",default=True)
