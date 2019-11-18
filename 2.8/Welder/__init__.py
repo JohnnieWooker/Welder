@@ -31,7 +31,7 @@ from bpy_extras.view3d_utils import (
 bl_info = {
     "name": "Welder",
     "author": "Łukasz Hoffmann",
-    "version": (1,0, 2),
+    "version": (1,0, 3),
     "location": "View 3D > Object Mode > Tool Shelf",
     "blender": (2, 80, 0),
     "description": "Generate weld along the odge of intersection of two objects",
@@ -506,17 +506,24 @@ class OBJECT_OT_WeldButton(bpy.types.Operator):
                 edge_length += (vert0-vert1).length
             
             edge_length = '{:.6f}'.format(edge_length)
-            #print(edge_length)
-            #print(OBJ1.matrix_world)
+            
+            guides=separateloose(OBJ1)
+            
+            for g in guides: g.select_set(True)
+            
             bpy.ops.object.convert(target="CURVE")
             bpy.ops.object.scale_clear()
             bpy.ops.object.select_all()
+            
+            listofwelds=[]
+            
+            for g in guides: listofwelds.append(MakeWeldFromCurve(g,edge_length,obje,matrix))
+            
+            for o in listofwelds: o.select_set(True)
     	
             if not preserve:
                 remove_obj(OBJ3.name)
                 remove_obj(OBJ4.name)
-    
-            MakeWeldFromCurve(OBJ1,edge_length,obje,matrix)
             
             return bpy.ops.weld.translate('INVOKE_DEFAULT')
             #return {'FINISHED'}
@@ -625,6 +632,21 @@ class OBJECT_OT_ShapeModifyModal(bpy.types.Operator):
         self._timer = wm.event_timer_add(0.1, window=context.window)
         wm.modal_handler_add(self)
         return {'RUNNING_MODAL'}    
+
+def separateloose(obj):    
+    selected=bpy.context.selected_objects
+    active=bpy.context.view_layer.objects.active
+    bpy.ops.object.select_all(action = 'DESELECT')
+    bpy.context.view_layer.objects.active=obj
+    obj.select_set(True)
+    bpy.ops.object.mode_set(mode='EDIT')
+    bpy.ops.mesh.separate(type='LOOSE')
+    bpy.ops.object.mode_set(mode='OBJECT')
+    separated=bpy.context.selected_objects
+    bpy.ops.object.select_all(action = 'DESELECT')
+    for s in selected: s.select_set(True)
+    bpy.context.view_layer.objects.active
+    return separated
 
 def hidemods(obj,hide):
     for m in obj.modifiers:
