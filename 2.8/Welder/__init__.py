@@ -31,7 +31,7 @@ from bpy_extras.view3d_utils import (
 bl_info = {
     "name": "Welder",
     "author": "Łukasz Hoffmann",
-    "version": (1,0, 3),
+    "version": (1,0, 4),
     "location": "View 3D > Object Mode > Tool Shelf",
     "blender": (2, 80, 0),
     "description": "Generate weld along the odge of intersection of two objects",
@@ -399,7 +399,9 @@ class OBJECT_OT_WeldButton(bpy.types.Operator):
                 v = p2.dot(normal)
                 #print(v)
                 return not(v < 0.0001)
-
+            bpy.ops.object.duplicate()
+            selectedobjects=bpy.context.selected_objects
+            for o in selectedobjects: applymods(o)
             objects = bpy.data.objects
             bpy.ops.object.transform_apply(location=True, rotation=True, scale=True) 
             OBJ1=bpy.context.selected_objects[0]
@@ -521,9 +523,9 @@ class OBJECT_OT_WeldButton(bpy.types.Operator):
             
             for o in listofwelds: o.select_set(True)
     	
-            if not preserve:
-                remove_obj(OBJ3.name)
-                remove_obj(OBJ4.name)
+            
+            remove_obj(OBJ3.name)
+            remove_obj(OBJ4.name)
             
             return bpy.ops.weld.translate('INVOKE_DEFAULT')
             #return {'FINISHED'}
@@ -632,6 +634,17 @@ class OBJECT_OT_ShapeModifyModal(bpy.types.Operator):
         self._timer = wm.event_timer_add(0.1, window=context.window)
         wm.modal_handler_add(self)
         return {'RUNNING_MODAL'}    
+
+def applymods(obj):
+    oldselected=bpy.context.selected_objects
+    oldactive=bpy.context.view_layer.objects.active
+    for m in obj.modifiers:
+        bpy.ops.object.select_all(action='DESELECT')
+        obj.select_set(True)
+        bpy.context.view_layer.objects.active = obj
+        bpy.ops.object.modifier_apply(apply_as='DATA',modifier=m.name)
+    bpy.context.view_layer.objects.active=oldactive
+    for o in oldselected: o.select_set(True)
 
 def separateloose(obj):    
     selected=bpy.context.selected_objects

@@ -30,7 +30,7 @@ from bpy_extras.view3d_utils import (
 bl_info = {
     "name": "Welder",
     "author": "Łukasz Hoffmann",
-    "version": (1,0, 3),
+    "version": (1,0, 4),
     "location": "View 3D > Object Mode > Tool Shelf",
     "blender": (2, 7, 9),
     "description": "Generate weld along the odge of intersection of two objects",
@@ -360,7 +360,10 @@ class OBJECT_OT_WeldButton(bpy.types.Operator):
                 v = p2.dot(normal)
                 #print(v)
                 return not(v < 0.0001)
-            objects = bpy.data.objects
+            bpy.ops.object.duplicate_move(OBJECT_OT_duplicate={"linked":False, "mode":'TRANSLATION'}, TRANSFORM_OT_translate={"value":(0, 0, 0), "constraint_axis":(False, False, False), "constraint_orientation":'GLOBAL', "mirror":False, "proportional":'DISABLED', "proportional_edit_falloff":'SMOOTH', "proportional_size":1, "snap":False, "snap_target":'CLOSEST', "snap_point":(0, 0, 0), "snap_align":False, "snap_normal":(0, 0, 0), "gpencil_strokes":False, "texture_space":False, "remove_on_cancel":False, "release_confirm":False, "use_accurate":False})
+            selectedobjects=bpy.context.selected_objects
+            for o in selectedobjects: applymods(o)
+            objects = bpy.data.objects            
             bpy.ops.object.transform_apply(location=True, rotation=True, scale=True) 
             OBJ1=bpy.context.selected_objects[0]
             matrix=OBJ1.matrix_world
@@ -471,7 +474,6 @@ class OBJECT_OT_WeldButton(bpy.types.Operator):
             guides=separateloose(OBJ1)
             
             for g in guides: g.select=True
-            
             bpy.ops.object.convert(target="CURVE")
             bpy.ops.object.scale_clear()
             bpy.ops.object.select_all()
@@ -482,9 +484,10 @@ class OBJECT_OT_WeldButton(bpy.types.Operator):
             
             for o in listofwelds: o.select=True
             
-            if not preserve:
-                removebyobj(OBJ3)
-                removebyobj(OBJ4)
+            
+            removebyobj(OBJ3)
+            removebyobj(OBJ4)
+            
             
             return bpy.ops.weld.translate('INVOKE_DEFAULT')
 
@@ -594,6 +597,17 @@ class ShapeModifyModal(bpy.types.Operator):
         wm.modal_handler_add(self)
         return {'RUNNING_MODAL'}    
 
+def applymods(obj):
+    oldselected=bpy.context.selected_objects
+    oldactive=bpy.context.scene.objects.active
+    for m in obj.modifiers:
+        bpy.ops.object.select_all(action='DESELECT')
+        obj.select = True
+        bpy.context.scene.objects.active = obj
+        bpy.ops.object.modifier_apply(apply_as='DATA',modifier=m.name)
+    bpy.context.scene.objects.active=oldactive
+    for o in oldselected: o.select=True
+    
 def separateloose(obj):    
     selected=bpy.context.selected_objects
     active=bpy.context.scene.objects.active
