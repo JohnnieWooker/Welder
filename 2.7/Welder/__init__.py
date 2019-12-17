@@ -18,7 +18,7 @@ import os
 from mathutils import Vector
 from mathutils.bvhtree import BVHTree
 import bpy.utils.previews
-from math import (sin,pow,floor)
+from math import (sin,pow,floor,ceil)
 from bpy.props import StringProperty, EnumProperty
 from bpy_extras.view3d_utils import (
     region_2d_to_vector_3d,
@@ -30,7 +30,7 @@ from bpy_extras.view3d_utils import (
 bl_info = {
     "name": "Welder",
     "author": "Łukasz Hoffmann",
-    "version": (1,0, 4),
+    "version": (1,0, 5),
     "location": "View 3D > Object Mode > Tool Shelf",
     "blender": (2, 7, 9),
     "description": "Generate weld along the odge of intersection of two objects",
@@ -506,6 +506,44 @@ class OBJECT_OT_ShapeModifyButton(bpy.types.Operator):
             
             bpy.context.scene.shapebuttonname="Modify"
             removenode()
+        return{'FINISHED'}
+
+class OBJECT_OT_OptimizeButton(bpy.types.Operator):
+    bl_idname = "weld.optimize"   
+    bl_label = "Add plane for baking"
+    def execute(self, context):
+        OBJ_Source=bpy.context.scene.objects.active
+        location=OBJ_Source.location
+        rotation=OBJ_Source.rotation_euler
+        scale=OBJ_Source.scale
+        current_path = os.path.dirname(os.path.realpath(__file__))
+        blendfile = os.path.join(current_path, "weld.blend")  #ustawic wlasna sciezke!        
+        section   = "\\Object\\"
+        object="Weld_plain"
+        filepath  = blendfile + section + object
+        directory = blendfile + section
+        filename  = object
+        bpy.ops.wm.append(
+            filepath=filepath, 
+            filename=filename,
+            directory=directory)
+        OBJ_Weld_plain=bpy.context.selected_objects[0]    
+        OBJ_Weld_plain.location=location
+        OBJ_Weld_plain.rotation_euler=rotation
+        OBJ_Weld_plain.scale=scale
+        source_array=OBJ_Source.modifiers["array"]
+        source_curve=OBJ_Source.modifiers["curve"]        
+        array = OBJ_Weld_plain.modifiers.new(type="ARRAY", name="array")
+        array.use_merge_vertices=True
+        array.use_relative_offset=True
+        array.merge_threshold=0.0001
+        curve=source_curve.object
+        edge_length=CalculateCurveLength(curve,curve.data.splines[0].use_cyclic_u)
+        segment_length=0.015*OBJ_Weld_plain.scale[0]
+        count=ceil(float(edge_length)/segment_length)
+        array.count=count  
+        curvemod=OBJ_Weld_plain.modifiers.new(type="CURVE", name="curve")
+        curvemod.object=curve
         return{'FINISHED'}
 
 class ShapeModifyModal(bpy.types.Operator):
@@ -1026,6 +1064,7 @@ def register():
     bpy.utils.register_class(OBJECT_OT_WeldButton)
     bpy.utils.register_class(OBJECT_OT_ShapeModifyButton)
     bpy.utils.register_class(WelderDrawOperator)
+    bpy.utils.register_class(OBJECT_OT_OptimizeButton)
 
 def unregister():
     bpy.utils.unregister_class(WeldTransformModal)
@@ -1033,6 +1072,7 @@ def unregister():
     bpy.utils.unregister_class(OBJECT_OT_WeldButton)
     bpy.utils.unregister_class(OBJECT_OT_ShapeModifyButton)
     bpy.utils.unregister_class(WelderDrawOperator)
+    bpy.utils.unregister_class(OBJECT_OT_OptimizeButton)
 
 register()
 
@@ -1057,7 +1097,7 @@ class WelderToolsPanel(bpy.types.Panel):
         row.prop(context.scene, "cyclic")
     
 class WelderSubPanelDynamic(bpy.types.Panel):
-    bl_label = "Shape"
+    bl_label = "Options"
     bl_space_type = "VIEW_3D"
     bl_region_type = "TOOLS"
     bl_category = "Welder"
@@ -1074,6 +1114,8 @@ class WelderSubPanelDynamic(bpy.types.Panel):
         box.row()
         if bpy.context.scene.shapemodified: box.template_curve_mapping(WeldCurveData('WeldCurve',self), "mapping")   
         else: removenode()
+        row=self.layout.row()
+        row.operator("weld.optimize")
     
 def register():
     bpy.types.Scene.cyclic=bpy.props.BoolProperty(name="cyclic", description="cyclic", default=True)
