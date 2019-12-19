@@ -47,6 +47,7 @@ bpy.types.Scene.shapemodified=bpy.props.BoolProperty(
 simplify_error=0.001
 lattice_error_thresh=0.0001
 
+
 class WelderDrawOperator(bpy.types.Operator):
     bl_idname = "weld.draw"
     bl_label = "Draw"   
@@ -1095,6 +1096,8 @@ class WelderToolsPanel(bpy.types.Panel):
         row.enabled=not bpy.context.scene.welddrawing
         row=self.layout.row()
         row.prop(context.scene, "cyclic")
+        row=self.layout.row()
+        row.prop(context.scene, 'type', expand=True)
     
 class WelderSubPanelDynamic(bpy.types.Panel):
     bl_label = "Options"
@@ -1119,6 +1122,10 @@ class WelderSubPanelDynamic(bpy.types.Panel):
     
 def register():
     bpy.types.Scene.cyclic=bpy.props.BoolProperty(name="cyclic", description="cyclic", default=True)
+    bpy.types.Scene.type=bpy.props.EnumProperty(items=[
+     ("Geometry", "Geometry", "", 0),
+    ("Decal", "Decal", "", 1),
+    ])
     bpy.utils.register_class(WelderToolsPanel)
     bpy.utils.register_class(WelderSubPanelDynamic)
 
