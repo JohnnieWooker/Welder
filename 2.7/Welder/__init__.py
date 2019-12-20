@@ -152,6 +152,7 @@ class WelderDrawOperator(bpy.types.Operator):
         if iconname=='icon_4.png': self.obje='Weld_4'
         if iconname=='icon_5.png': self.obje='Weld_5'
         if self.obje=='': return {'FINISHED'}
+        if bpy.context.scene.type=='Decal': self.obje=self.obje+'_decal'
         self.lmb = False
         self.initiated=False
         if (bpy.context.object!=None):
@@ -324,7 +325,9 @@ class OBJECT_OT_WeldButton(bpy.types.Operator):
             if iconname=='icon_3.png': obje='Weld_3'
             if iconname=='icon_4.png': obje='Weld_4'
             if iconname=='icon_5.png': obje='Weld_5'
-            if obje=='': return {'FINISHED'}      
+            if obje=='': return {'FINISHED'}   
+            if bpy.context.scene.type=='Decal': obje=obje+'_decal'   
+            print(bpy.context.scene.type)
             welds=[]  
             for o in obj:   
                 if (o.type=='CURVE'): 
@@ -354,6 +357,7 @@ class OBJECT_OT_WeldButton(bpy.types.Operator):
             if iconname=='icon_4.png': obje='Weld_4'
             if iconname=='icon_5.png': obje='Weld_5'
             if obje=='': return {'FINISHED'}
+            if bpy.context.scene.type=='Decal': obje=obje+'_decal'
             def is_inside(p, obj):
                 max_dist = 1.84467e+19
                 found, point, normal, face = obj.closest_point_on_mesh(p, max_dist)
@@ -936,6 +940,7 @@ def MakeWeldFromCurve(OBJ1,edge_length,obje,matrix):
     section   = "\\Object\\"
     if (obje==''):
         object="Weld_1"
+        if bpy.context.scene.type=='Decal': object=object+'_decal'    
     else:
         object=obje
     filepath  = blendfile + section + object
@@ -962,6 +967,7 @@ def MakeWeldFromCurve(OBJ1,edge_length,obje,matrix):
     #array.relative_offset_displace[0]=0.83        
     offset=0.04331
     if object=="Weld_3": offset=0.1
+    if object=="Weld_3_decal": offset=0.1
     array.constant_offset_displace[0]=offset
     curve=OBJ_WELD.modifiers.new(type="CURVE", name="curve")
     curve.object=OBJ1
@@ -1123,8 +1129,8 @@ class WelderSubPanelDynamic(bpy.types.Panel):
 def register():
     bpy.types.Scene.cyclic=bpy.props.BoolProperty(name="cyclic", description="cyclic", default=True)
     bpy.types.Scene.type=bpy.props.EnumProperty(items=[
-     ("Geometry", "Geometry", "", 0),
-    ("Decal", "Decal", "", 1),
+     ("Geometry", "Geometry", "Geometry", 0),
+    ("Decal", "Decal", "Decal", 1),
     ])
     bpy.utils.register_class(WelderToolsPanel)
     bpy.utils.register_class(WelderSubPanelDynamic)
