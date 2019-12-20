@@ -18,7 +18,7 @@ import os
 from mathutils import Vector
 from mathutils.bvhtree import BVHTree
 import bpy.utils.previews
-from math import (sin,pow,floor,ceil)
+from math import (sin,pow,floor,ceil,floor)
 from bpy.props import StringProperty, EnumProperty
 from bpy_extras.view3d_utils import (
     region_2d_to_vector_3d,
@@ -30,7 +30,7 @@ from bpy_extras.view3d_utils import (
 bl_info = {
     "name": "Welder",
     "author": "Łukasz Hoffmann",
-    "version": (1,0, 5),
+    "version": (1,0, 6),
     "location": "View 3D > Object Mode > Tool Shelf",
     "blender": (2, 7, 9),
     "description": "Generate weld along the odge of intersection of two objects",
@@ -327,7 +327,6 @@ class OBJECT_OT_WeldButton(bpy.types.Operator):
             if iconname=='icon_5.png': obje='Weld_5'
             if obje=='': return {'FINISHED'}   
             if bpy.context.scene.type=='Decal': obje=obje+'_decal'   
-            print(bpy.context.scene.type)
             welds=[]  
             for o in obj:   
                 if (o.type=='CURVE'): 
@@ -966,8 +965,12 @@ def MakeWeldFromCurve(OBJ1,edge_length,obje,matrix):
     array.count=count
     #array.relative_offset_displace[0]=0.83        
     offset=0.04331
-    if object=="Weld_3": offset=0.1
-    if object=="Weld_3_decal": offset=0.1
+    if object=="Weld_3": 
+        offset=0.1
+        array.count=floor(count/2.3)-1
+    if object=="Weld_3_decal": 
+        offset=0.1
+        array.count=floor(count/2.3)-1
     array.constant_offset_displace[0]=offset
     curve=OBJ_WELD.modifiers.new(type="CURVE", name="curve")
     curve.object=OBJ1

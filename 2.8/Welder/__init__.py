@@ -31,7 +31,7 @@ from bpy_extras.view3d_utils import (
 bl_info = {
     "name": "Welder",
     "author": "Łukasz Hoffmann",
-    "version": (1,0, 5),
+    "version": (1,0, 6),
     "location": "View 3D > Object Mode > Tool Shelf",
     "blender": (2, 80, 0),
     "description": "Generate weld along the odge of intersection of two objects",
@@ -179,6 +179,7 @@ class OBJECT_OT_WelderDrawOperator(bpy.types.Operator):
         if iconname=='icon_4.png': self.obje='Weld_4'
         if iconname=='icon_5.png': self.obje='Weld_5'
         if self.obje=='': return {'FINISHED'}
+        if bpy.context.scene.type=='Decal': self.obje=self.obje+'_decal'
         self.lmb = False
         self.initiated=False
         if (bpy.context.object!=None):
@@ -364,6 +365,7 @@ class OBJECT_OT_WeldButton(bpy.types.Operator):
             if iconname=='icon_4.png': obje='Weld_4'
             if iconname=='icon_5.png': obje='Weld_5'
             if obje=='': return {'FINISHED'}   
+            if bpy.context.scene.type=='Decal': obje=obje+'_decal'   
             welds=[] 
             for o in obj:   
                 if (o.type=='CURVE'):                    
@@ -392,6 +394,7 @@ class OBJECT_OT_WeldButton(bpy.types.Operator):
             if iconname=='icon_4.png': obje='Weld_4'
             if iconname=='icon_5.png': obje='Weld_5'
             if obje=='': return {'FINISHED'}
+            if bpy.context.scene.type=='Decal': obje=obje+'_decal'
             def is_inside(p, obj):
                 max_dist = 1.84467e+19
                 found, point, normal, face = obj.closest_point_on_mesh(p, distance=max_dist)
@@ -999,7 +1002,12 @@ def MakeWeldFromCurve(OBJ1,edge_length,obje,matrix):
     count=int(float(edge_length)/0.04331)+1
     array.count=count
     offset=0.04331
-    if object=="Weld_3": offset=0.1
+    if object=="Weld_3": 
+        offset=0.1
+        array.count=floor(count/2.3)-1
+    if object=="Weld_3_decal": 
+        offset=0.1
+        array.count=floor(count/2.3)-1
     array.constant_offset_displace[0]=offset
     curve=OBJ_WELD.modifiers.new(type="CURVE", name="curve")
     curve.object=OBJ1
@@ -1093,6 +1101,8 @@ class PANEL_PT_WelderToolsPanel(bpy.types.Panel):
         row.enabled=not bpy.context.scene.welddrawing
         row=self.layout.row()
         row.prop(context.scene, "cyclic")
+        row=self.layout.row()
+        row.prop(context.scene, 'type', expand=True)
         
 class PANEL_PT_WelderSubPanelDynamic(bpy.types.Panel):        
     bl_label = "Shape"
@@ -1131,6 +1141,10 @@ OBJECT_OT_OptimizeButton
 )
 register, unregister = bpy.utils.register_classes_factory(classes) 
 bpy.types.Scene.cyclic=bpy.props.BoolProperty(name="cyclic", description="cyclic",default=True)
+bpy.types.Scene.type=bpy.props.EnumProperty(items=[
+    ("Geometry", "Geometry", "Geometry", 0),
+    ("Decal", "Decal", "Decal", 1),
+    ])
 
 if __name__ == "__main__":
     register()
