@@ -30,7 +30,7 @@ from bpy_extras.view3d_utils import (
 bl_info = {
     "name": "Welder",
     "author": "Łukasz Hoffmann",
-    "version": (1,0, 6),
+    "version": (1,0, 7),
     "location": "View 3D > Object Mode > Tool Shelf",
     "blender": (2, 7, 9),
     "description": "Generate weld along the odge of intersection of two objects",
@@ -309,6 +309,10 @@ class OBJECT_OT_WeldButton(bpy.types.Operator):
         if (bpy.context.object.mode!='OBJECT'):
             self.report({'ERROR'}, 'Welding works only in edit or object mode')
             return {'FINISHED'}
+        curves=0
+        for o in bpy.context.selected_objects:
+            if (o.type=='CURVE'): curves=curves+1
+        if len(bpy.context.selected_objects)==curves: edit=True
         if (len(bpy.context.selected_objects)>0 and edit):
             obj=bpy.context.selected_objects
             bpy.ops.object.select_all(action = 'DESELECT')
@@ -328,7 +332,8 @@ class OBJECT_OT_WeldButton(bpy.types.Operator):
             if obje=='': return {'FINISHED'}   
             if bpy.context.scene.type=='Decal': obje=obje+'_decal'   
             welds=[]  
-            for o in obj:   
+            print("test")  
+            for o in obj: 
                 if (o.type=='CURVE'): 
                     o.select=True                      
                     bpy.context.scene.objects.active = o
