@@ -22,6 +22,7 @@ from mathutils import Vector
 import bpy.utils.previews
 from math import (sin,pow,floor,ceil)
 from bpy.props import StringProperty, EnumProperty
+from bpy.types import AddonPreferences
 from bpy_extras.view3d_utils import (
     region_2d_to_vector_3d,
     region_2d_to_origin_3d,
@@ -31,8 +32,10 @@ from bpy_extras.view3d_utils import (
 bl_info = {
     "name": "Welder",
     "author": "Łukasz Hoffmann",
-    "version": (1,0, 7),
+    "version": (1,0, 9),
     "location": "View 3D > Object Mode > Tool Shelf",
+    "wiki_url": "https://gumroad.com/l/lQVzQ",
+    "tracker_url": "https://blenderartists.org/t/welder/672478/1",
     "blender": (2, 80, 0),
     "description": "Generate weld along the odge of intersection of two objects",
     "warning": "",
@@ -1133,10 +1136,67 @@ class PANEL_PT_WelderSubPanelDynamic(bpy.types.Panel):
         else: removenode()
         row=self.layout.row()
         row.operator("weld.optimize")     
+
+def update_welder_category(self, context):
+    try:
+        bpy.utils.unregister_class(PANEL_PT_WelderToolsPanel)
+    except:
+        pass
+    PANEL_PT_WelderToolsPanel.bl_category = context.preferences.addons[__name__].preferences.category
+    bpy.utils.register_class(PANEL_PT_WelderToolsPanel)
+
+class WelderPreferences(bpy.types.AddonPreferences):
+    bl_idname = __name__
+    prefs_tabs: EnumProperty(
+    items=(('info', "Info", "Welder Info"),
+           ('options', "Options", "Welder Options")),
+    default='info')
+    
+    category : StringProperty(description="Choose a name for the category of the panel",default="Welder", update=update_welder_category)
+
+    def draw(self, context):
+        wm = context.window_manager
+        layout = self.layout
+
+        row= layout.row(align=True)
+        row.prop(self, "prefs_tabs", expand=True)
+        if self.prefs_tabs == 'info':
+            layout.label(text="1. Welding along intersection")
+            layout.label(text="- select 2 objects in object mode,")
+            layout.label(text="- choose what type of weld you want to place (Geometry/Decal)")
+            layout.label(text="- click 'Weld' button")
+            layout.label(text="- adjust scale by moving the mouse (LMB to apply, RMB sets to default scale)")
+            layout.label(text="- adjust rotation by moving the mouse (LMB to apply, RMB sets to default rotation)")
+            layout.label(text="2. Welding along selected edgeloop")
+            layout.label(text="- select desired edgeloop in edit mode, ")
+            layout.label(text="- choose what type of weld you want to place (Geometry/Decal)")
+            layout.label(text="- click 'Weld' button")
+            layout.label(text="- adjust scale by moving the mouse (LMB to apply, RMB sets to default scale)")
+            layout.label(text="- adjust rotation by moving the mouse (LMB to apply, RMB sets to default rotation)")
+            layout.label(text="3. Draw welds")
+            layout.label(text="- click 'Draw' button while in object mode")
+            layout.label(text="- draw on the model's surface")
+            layout.label(text="- click RMB or Enter in order to finish drawing and place weld")
+            layout.label(text="- adjust scale by moving the mouse (LMB to apply, RMB sets to default scale)")
+            layout.label(text="- adjust rotation by moving the mouse (LMB to apply, RMB sets to default rotation)")
+            layout.label(text="4. Profile editing")
+            layout.label(text="- select weld,")
+            layout.label(text="- click 'Modify; button")
+            layout.label(text="- adjust weld's profile by playing with curve widget")
+            layout.label(text="- click 'Apply' button to accept results")
+    
+        if self.prefs_tabs == 'options':
+            box = layout.box()    
+            row = box.row(align=True)
+            row.label(text="Panel Category:")
+            row.prop(self, "category", text="")
+
+
              
 classes =(
 OBJECT_OT_WeldButton,
-PANEL_PT_WelderToolsPanel,
+#PANEL_PT_WelderToolsPanel,
+WelderPreferences,
 PANEL_PT_WelderSubPanelDynamic,
 OBJECT_OT_WeldTransformModal,
 OBJECT_OT_WelderDrawOperator,
@@ -1144,12 +1204,28 @@ OBJECT_OT_ShapeModifyButton,
 OBJECT_OT_ShapeModifyModal,
 OBJECT_OT_OptimizeButton
 )
-register, unregister = bpy.utils.register_classes_factory(classes) 
 bpy.types.Scene.cyclic=bpy.props.BoolProperty(name="cyclic", description="cyclic",default=True)
 bpy.types.Scene.type=bpy.props.EnumProperty(items=[
     ("Geometry", "Geometry", "Geometry", 0),
     ("Decal", "Decal", "Decal", 1),
     ])
 
+def register():
+    for cls in classes:
+        bpy.utils.register_class(cls)
+    context = bpy.context
+    prefs = context.preferences.addons[__name__].preferences
+    update_welder_category(prefs, context)    
+
+def unregister():
+    for cls in classes:
+        bpy.utils.unregister_class(cls)
+
+
+'''
 if __name__ == "__main__":
     register()
+    context = bpy.context
+    prefs = context.preferences.addons[__name__].preferences
+    update_welder_category(prefs, context)
+    '''
