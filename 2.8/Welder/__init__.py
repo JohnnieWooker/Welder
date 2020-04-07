@@ -32,7 +32,7 @@ from bpy_extras.view3d_utils import (
 bl_info = {
     "name": "Welder",
     "author": "Łukasz Hoffmann",
-    "version": (1,0, 9),
+    "version": (1,1,0),
     "location": "View 3D > Object Mode > Tool Shelf",
     "wiki_url": "https://gumroad.com/l/lQVzQ",
     "tracker_url": "https://blenderartists.org/t/welder/672478/1",
@@ -550,7 +550,7 @@ class OBJECT_OT_ShapeModifyButton(bpy.types.Operator):
             bpy.context.scene.shapebuttonname="Apply"
             WeldNodeTree()
             WeldCurveData('WeldCurve',self)
-            bpy.ops.weld.shapemodal()            
+            bpy.ops.weld.shapemodal()                       
         else:             
             bpy.context.scene.shapebuttonname="Modify"
             removenode()
@@ -616,13 +616,15 @@ class OBJECT_OT_ShapeModifyModal(bpy.types.Operator):
                         
         return {'PASS_THROUGH'}
     def cancel(self, context):
+        destroyLattice(self)
         removenode()
         bpy.context.scene.shapemodified=False
         bpy.context.scene.shapebuttonname="Modify"
         wm = context.window_manager
         wm.event_timer_remove(self._timer)    
-    def execute(self, context):
+    def execute(self, context):        
         obj=bpy.context.view_layer.objects.active
+        cleanupWeld(obj)
         lattice_presence=False
         lattice=None 
         dimensions=obj.dimensions       
@@ -639,6 +641,7 @@ class OBJECT_OT_ShapeModifyModal(bpy.types.Operator):
             lattice=obj.modifiers.new(name="Lattice", type='LATTICE') 
         #lattice object addition
         if lattice.object==None:  
+            print(obj["shape_points"])
             bpy.ops.object.add(type='LATTICE', align='VIEW', enter_editmode=False, location=obj.location,)
             obj_lattice=bpy.context.view_layer.objects.active
             hidemods(obj,False)  
@@ -682,6 +685,43 @@ class OBJECT_OT_ShapeModifyModal(bpy.types.Operator):
         self._timer = wm.event_timer_add(0.1, window=context.window)
         wm.modal_handler_add(self)
         return {'RUNNING_MODAL'}    
+
+def cleanupWeld(obj):
+    bpy.ops.object.mode_set(mode='OBJECT')
+    oldselected=bpy.context.selected_objects
+    oldactive=bpy.context.view_layer.objects.active
+    bpy.ops.object.select_all(action='DESELECT')
+    oldobject=obj
+    current_path = os.path.dirname(os.path.realpath(__file__))
+    blendfile = os.path.join(current_path, "weld.blend")
+    section   = "\\Object\\"
+    object=obj["Weld"]
+    filepath  = blendfile + section + object
+    directory = blendfile + section
+    filename  = object
+    bpy.ops.wm.append(
+        filepath=filepath, 
+        filename=filename,
+        directory=directory)
+    newobject=bpy.context.selected_objects[0] 
+    bpy.ops.object.select_all(action='DESELECT')
+    bpy.context.view_layer.objects.active = newobject
+    oldobject.select_set(True)
+    bpy.ops.object.make_links_data(type='OBDATA')
+    bpy.ops.object.select_all(action='DESELECT')
+    oldobject.select_set(True)
+    bpy.ops.object.make_single_user(type='SELECTED_OBJECTS', obdata=True)
+    remove_obj(newobject.name)  
+    bpy.context.view_layer.objects.active=oldactive
+    for o in oldselected: o.select_set(True) 
+
+def destroyLattice(self):
+    bpy.ops.object.mode_set(mode='OBJECT')
+    for m in self.obj.modifiers:
+        if m.type=="LATTICE" and m.object==self.obj_lattice:
+            bpy.ops.object.modifier_apply(apply_as='DATA',modifier=m.name)
+    remove_obj(self.obj_lattice.name)        
+    #print(self.obj_lattice)
 
 def applymods(obj):
     oldselected=bpy.context.selected_objects
@@ -948,8 +988,8 @@ def SimplifyCurve(obj,error):
     if bpy.context.scene.cyclic: bpy.ops.curve.cyclic_toggle()
     bpy.ops.object.mode_set(mode = 'OBJECT')    
 
-def addprop(object):    
-    object["Weld"]="True"
+def addprop(object, value):    
+    object["Weld"]=value
 
 def CalculateCurveLength(curve,cyclic):
     bpy.ops.object.select_all(action='DESELECT')
@@ -1001,7 +1041,7 @@ def MakeWeldFromCurve(OBJ1,edge_length,obje,matrix):
     OBJ_WELD=bpy.context.selected_objects[0]
     OBJ_WELD["Dimensions"]=OBJ_WELD.dimensions
     OBJ_WELD.matrix_world=matrix
-    addprop(OBJ_WELD)
+    addprop(OBJ_WELD,object)
     array = OBJ_WELD.modifiers.new(type="ARRAY", name="array")
     array.use_merge_vertices=True
     array.use_relative_offset=False
