@@ -32,7 +32,7 @@ from bpy_extras.view3d_utils import (
 bl_info = {
     "name": "Welder",
     "author": "Łukasz Hoffmann",
-    "version": (1,1,0),
+    "version": (1,1,2),
     "location": "View 3D > Object Mode > Tool Shelf",
     "wiki_url": "https://gumroad.com/l/lQVzQ",
     "tracker_url": "https://blenderartists.org/t/welder/672478/1",
@@ -599,7 +599,7 @@ class OBJECT_OT_ShapeModifyModal(bpy.types.Operator):
     bl_label = "Weld shape modify modal"
     _timer = None
     def modal(self, context, event):
-        if event.type in {'RIGHTMOUSE', 'ESC'} or not bpy.context.scene.shapemodified:
+        if event.type in {'RIGHTMOUSE', 'ESC'} or not bpy.context.scene.shapemodified or bpy.context.view_layer.objects.active!=self.obj:
             self.cancel(context)
             return {'CANCELLED'}
         if event.type == 'TIMER':
@@ -616,6 +616,7 @@ class OBJECT_OT_ShapeModifyModal(bpy.types.Operator):
                         
         return {'PASS_THROUGH'}
     def cancel(self, context):
+        bpy.context.view_layer.objects.active=self.obj
         destroyLattice(self)
         removenode()
         bpy.context.scene.shapemodified=False
@@ -1180,10 +1181,13 @@ class PANEL_PT_WelderSubPanelDynamic(bpy.types.Panel):
 def update_welder_category(self, context):
     try:
         bpy.utils.unregister_class(PANEL_PT_WelderToolsPanel)
+        bpy.utils.unregister_class(PANEL_PT_WelderSubPanelDynamic)
     except:
         pass
     PANEL_PT_WelderToolsPanel.bl_category = context.preferences.addons[__name__].preferences.category
+    PANEL_PT_WelderSubPanelDynamic.bl_category = context.preferences.addons[__name__].preferences.category
     bpy.utils.register_class(PANEL_PT_WelderToolsPanel)
+    bpy.utils.register_class(PANEL_PT_WelderSubPanelDynamic)
 
 class WelderPreferences(bpy.types.AddonPreferences):
     bl_idname = __name__
@@ -1237,7 +1241,7 @@ classes =(
 OBJECT_OT_WeldButton,
 #PANEL_PT_WelderToolsPanel,
 WelderPreferences,
-PANEL_PT_WelderSubPanelDynamic,
+#PANEL_PT_WelderSubPanelDynamic,
 OBJECT_OT_WeldTransformModal,
 OBJECT_OT_WelderDrawOperator,
 OBJECT_OT_ShapeModifyButton,
