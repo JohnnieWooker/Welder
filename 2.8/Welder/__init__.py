@@ -32,7 +32,7 @@ from bpy_extras.view3d_utils import (
 bl_info = {
     "name": "Welder",
     "author": "Łukasz Hoffmann",
-    "version": (1,1,2),
+    "version": (1,1,3),
     "location": "View 3D > Object Mode > Tool Shelf",
     "wiki_url": "https://gumroad.com/l/lQVzQ",
     "tracker_url": "https://blenderartists.org/t/welder/672478/1",
@@ -157,8 +157,7 @@ class OBJECT_OT_WelderDrawOperator(bpy.types.Operator):
             SimplifyCurve(curve,simplify_error)
             edge_length=CalculateCurveLength(curve,bpy.context.scene.cyclic)
             matrix=curve.matrix_world  
-            MakeWeldFromCurve(curve,edge_length,self.obje,matrix)  
-              
+            obj=MakeWeldFromCurve(curve,edge_length,self.obje,matrix,emtpy=[])  
             self.phase=1  
             return bpy.ops.weld.translate('INVOKE_DEFAULT')
         
@@ -383,7 +382,8 @@ class OBJECT_OT_WeldButton(bpy.types.Operator):
                     bpy.ops.object.mode_set(mode='OBJECT')            
                     edge_length=CalculateCurveLength(o,o.data.splines[0].use_cyclic_u)
                     matrix=o.matrix_world  
-                    welds.append(MakeWeldFromCurve(o,edge_length,obje,matrix))
+                    objweld=MakeWeldFromCurve(o,edge_length,obje,matrix,empty=[])
+                    welds.append(objweld)
             for o in welds:   
                 o.select_set(True)                    
                 bpy.context.view_layer.objects.active = o        
@@ -529,7 +529,7 @@ class OBJECT_OT_WeldButton(bpy.types.Operator):
             
             listofwelds=[]
             
-            for g in guides: listofwelds.append(MakeWeldFromCurve(g,edge_length,obje,matrix))
+            for g in guides: listofwelds.append(MakeWeldFromCurve(g,edge_length,obje,matrix,empty=[]))
             
             for o in listofwelds: o.select_set(True)
     	
@@ -1020,7 +1020,12 @@ def CalculateCurveLength(curve,cyclic):
     bpy.ops.object.delete()        
     return(edge_length)
 
-def MakeWeldFromCurve(OBJ1,edge_length,obje,matrix):
+def AddBlending(obj,surfaces):
+    print(obj.name)
+    for s in surfaces:
+        print(s.name)
+
+def MakeWeldFromCurve(OBJ1,edge_length,obje,matrix,surfaces):
     current_path = os.path.dirname(os.path.realpath(__file__))
     blendfile = os.path.join(current_path, "weld.blend")  #ustawic wlasna sciezke!
     section   = "\\Object\\"
@@ -1067,7 +1072,8 @@ def MakeWeldFromCurve(OBJ1,edge_length,obje,matrix):
     #bpy.ops.object.modifier_apply(modifier='curve')
     bpy.ops.object.select_all(action = 'DESELECT')
     OBJ_WELD.select_set(True)  
-    bpy.context.view_layer.objects.active = OBJ_WELD    
+    bpy.context.view_layer.objects.active = OBJ_WELD  
+    AddBlending(OBJ_WELD,surfaces):  
     return(OBJ_WELD)  
     #bpy.ops.object.delete() 
 
