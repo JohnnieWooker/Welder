@@ -32,7 +32,7 @@ from bpy_extras.view3d_utils import (
 bl_info = {
     "name": "Welder",
     "author": "Łukasz Hoffmann",
-    "version": (1,1,3),
+    "version": (1,1,4),
     "location": "View 3D > Object Mode > Tool Shelf",
     "wiki_url": "https://gumroad.com/l/lQVzQ",
     "tracker_url": "https://blenderartists.org/t/welder/672478/1",
@@ -40,7 +40,7 @@ bl_info = {
     "description": "Generate weld along the odge of intersection of two objects",
     "warning": "",
     "category": "Object",
-	}
+    }
 
 def generate_previews():
     # We are accessing all of the information that we generated in the register function below
@@ -59,6 +59,8 @@ def generate_previews():
             
     return enum_items 
 
+bpy.types.Scene.weldsmooth=bpy.props.BoolProperty(
+    name="weldsmooth", description="weldsmooth", default=False)
 bpy.types.Scene.welddrawing=bpy.props.BoolProperty(
     name="welddrawing", description="welddrawing", default=False)
 bpy.types.Scene.shapemodified=bpy.props.BoolProperty(
@@ -81,92 +83,97 @@ class OBJECT_OT_WelderDrawOperator(bpy.types.Operator):
     bl_label = "Draw"    
     
     def modal(self, context, event):
-        if self.drawended:
-            return {'FINISHED'}
-        if (context.area==None):
-            self.unregister_handlers(context)
-            bpy.context.scene.welddrawing=False
-            return {'CANCELLED'}    
-        context.area.tag_redraw()        
-        
-        if event.type == 'LEFTMOUSE' and self.phase==0:
-            self.lmb=True
-            if event.value in {'RELEASE'}: self.lmb=False
-            self.draw_event  = None
-            self.initiated=True            
-            #self.lmb = event.value == 'PRESS'
-        
-        elif event.type == 'MOUSEMOVE' and self.phase==0:
-            if event.value == 'PRESS' and self.lmb:
-                if get_mouse_3d_on_mesh(self,event,context) is not None:
-                    ishit,hit=get_mouse_3d_on_mesh(self,event,context)
-                    if (ishit): 
-                        self.mouse_path.append(hit)
-                        
-            
-            #print("test")
-
-        elif (event.type == 'RIGHTMOUSE' or event.type == 'RET') and event.value in {'RELEASE'} and self.phase==0:
-            cyclic=bpy.context.scene.cyclic
-            self.unregister_handlers(context)       
-            if not self.initiated:
+        try:
+            if self.drawended:
                 return {'FINISHED'}
-            context = bpy.context
-            scene = context.scene        
+            if (context.area==None):
+                self.unregister_handlers(context)
+                bpy.context.scene.welddrawing=False
+                return {'CANCELLED'}    
+            context.area.tag_redraw()        
             
-            gpencil_obj_name="gp_weld"             
+            if event.type == 'LEFTMOUSE' and self.phase==0:
+                self.lmb=True
+                if event.value in {'RELEASE'}: self.lmb=False
+                self.draw_event  = None
+                self.initiated=True            
+                #self.lmb = event.value == 'PRESS'
             
-            if gpencil_obj_name not in bpy.context.scene.objects:
-                bpy.ops.object.gpencil_add(location=(0, 0, 0), type='EMPTY')                
-                bpy.context.view_layer.objects.active.name = gpencil_obj_name
-            gp = bpy.context.scene.objects[gpencil_obj_name]    
-            # Reference grease pencil layer or create one of none exists
-            if gp.data.layers:
-                gpl = gp.data.layers[0]
-            else:
-                gpl = gp.data.layers.new('Welding_Curve', set_active = True )
+            elif event.type == 'MOUSEMOVE' and self.phase==0:
+                if event.value == 'PRESS' and self.lmb:
+                    if get_mouse_3d_on_mesh(self,event,context) is not None:
+                        ishit,hit=get_mouse_3d_on_mesh(self,event,context)
+                        if (ishit): 
+                            self.mouse_path.append(hit)
+                            
+                
+                #print("test")
 
-            # Reference active GP frame or create one of none exists    
-            if gpl.active_frame:
-                fr = gpl.active_frame
-            else:
-                fr = gpl.frames.new(0) 
+            elif (event.type == 'RIGHTMOUSE' or event.type == 'RET') and event.value in {'RELEASE'} and self.phase==0:
+                cyclic=bpy.context.scene.cyclic
+                self.unregister_handlers(context)       
+                if not self.initiated:
+                    bpy.context.scene.welddrawing=False
+                    return {'FINISHED'}
+                context = bpy.context
+                scene = context.scene        
+                
+                gpencil_obj_name="gp_weld"             
+                
+                if gpencil_obj_name not in bpy.context.scene.objects:
+                    bpy.ops.object.gpencil_add(location=(0, 0, 0), type='EMPTY')                
+                    bpy.context.view_layer.objects.active.name = gpencil_obj_name
+                gp = bpy.context.scene.objects[gpencil_obj_name]    
+                # Reference grease pencil layer or create one of none exists
+                if gp.data.layers:
+                    gpl = gp.data.layers[0]
+                else:
+                    gpl = gp.data.layers.new('Welding_Curve', set_active = True )
 
-            # Create a new stroke
-            str = fr.strokes.new()
-            str.display_mode = '3DSPACE'
-            str.line_width = 1 # default 3
-            
-            str.points.add(len(self.mouse_path))
-            for p0, p in zip(self.mouse_path, str.points):
-                p.co = p0  
-            bpy.ops.gpencil.convert(type='PATH', use_timing_data=False)
-            
-            remove_obj(gp.name)
-            #bpy.ops.gpencil.data_unlink()             
-              
-            #set proper radius
-            bpy.context.view_layer.objects.active = bpy.context.selected_objects[0]
-            bpy.ops.object.mode_set(mode='EDIT')
-            bpy.ops.curve.select_all(action='SELECT')
-            bpy.ops.curve.radius_set(radius=1)
-            if cyclic: bpy.ops.curve.cyclic_toggle()
-            bpy.ops.object.mode_set(mode='OBJECT')            
-            curve=bpy.context.view_layer.objects.active
-            
-            SimplifyCurve(curve,simplify_error)
-            edge_length=CalculateCurveLength(curve,bpy.context.scene.cyclic)
-            matrix=curve.matrix_world  
-            obj=MakeWeldFromCurve(curve,edge_length,self.obje,matrix,emtpy=[])  
-            self.phase=1  
-            return bpy.ops.weld.translate('INVOKE_DEFAULT')
-        
+                # Reference active GP frame or create one of none exists    
+                if gpl.active_frame:
+                    fr = gpl.active_frame
+                else:
+                    fr = gpl.frames.new(0) 
 
-        elif event.type in {'ESC'} and self.phase==0:
-            self.unregister_handlers(context)
+                # Create a new stroke
+                str = fr.strokes.new()
+                str.display_mode = '3DSPACE'
+                str.line_width = 1 # default 3
+                
+                str.points.add(len(self.mouse_path))
+                for p0, p in zip(self.mouse_path, str.points):
+                    p.co = p0  
+                bpy.ops.gpencil.convert(type='PATH', use_timing_data=False)
+                
+                remove_obj(gp.name)
+                #bpy.ops.gpencil.data_unlink()             
+                  
+                #set proper radius
+                bpy.context.view_layer.objects.active = bpy.context.selected_objects[0]
+                bpy.ops.object.mode_set(mode='EDIT')
+                bpy.ops.curve.select_all(action='SELECT')
+                bpy.ops.curve.radius_set(radius=1)
+                if cyclic: bpy.ops.curve.cyclic_toggle()
+                bpy.ops.object.mode_set(mode='OBJECT')            
+                curve=bpy.context.view_layer.objects.active
+                surfaces=ScanForSurfaces(curve)
+                SimplifyCurve(curve,simplify_error)
+                edge_length=CalculateCurveLength(curve,bpy.context.scene.cyclic)
+                matrix=curve.matrix_world  
+                obj=MakeWeldFromCurve(curve,edge_length,self.obje,matrix,surfaces)  
+                self.phase=1  
+                return bpy.ops.weld.translate('INVOKE_DEFAULT')
+            
+
+            elif event.type in {'ESC'} and self.phase==0:
+                self.unregister_handlers(context)
+                bpy.context.scene.welddrawing=False
+                return {'CANCELLED'}
+            
+        except:    
             bpy.context.scene.welddrawing=False
-            return {'CANCELLED'}
-
+            
         return {'PASS_THROUGH'}
 
     def invoke(self, context, event):  
@@ -254,6 +261,7 @@ class OBJECT_OT_WeldTransformModal(bpy.types.Operator):
         elif event.type == 'LEFTMOUSE' and event.value in {'RELEASE'}:    
             if (self.phase==2):
                 bpy.context.scene.welddrawing=False
+                for i in range(len(self.OBJ_WELD)): enabledatatransfer(self.OBJ_WELD[i])
                 return {'FINISHED'}   
             if (self.phase==1):
                 self.phase=2
@@ -264,6 +272,7 @@ class OBJECT_OT_WeldTransformModal(bpy.types.Operator):
                 for i in range(len(self.OBJ_WELD)):
                     self.OBJ_WELD[i].rotation_euler[0]=0    
                 bpy.context.scene.welddrawing=False
+                for i in range(len(self.OBJ_WELD)): enabledatatransfer(self.OBJ_WELD[i])
                 return {'CANCELLED'}
             if (self.phase==1):
                 for i in range(len(self.OBJ_WELD)):
@@ -277,9 +286,10 @@ class OBJECT_OT_WeldTransformModal(bpy.types.Operator):
                 self._initial_mouse = Vector((event.mouse_x, event.mouse_y, 0.0))
                 return {'RUNNING_MODAL'}             
         return {'RUNNING_MODAL'}
-    def invoke(self, context, event):
+    def invoke(self, context, event):        
         self._initial_mouse = Vector((event.mouse_x, event.mouse_y, 0.0))
         self.OBJ_WELD=bpy.context.selected_objects
+        for i in range(len(self.OBJ_WELD)): disabledatatransfer(self.OBJ_WELD[i])
         self.array=[m.modifiers["array"] for m in self.OBJ_WELD]
         self.old_count=[a.count for a in self.array]
         self.phase=1
@@ -382,7 +392,7 @@ class OBJECT_OT_WeldButton(bpy.types.Operator):
                     bpy.ops.object.mode_set(mode='OBJECT')            
                     edge_length=CalculateCurveLength(o,o.data.splines[0].use_cyclic_u)
                     matrix=o.matrix_world  
-                    objweld=MakeWeldFromCurve(o,edge_length,obje,matrix,empty=[])
+                    objweld=MakeWeldFromCurve(o,edge_length,obje,matrix,obj)
                     welds.append(objweld)
             for o in welds:   
                 o.select_set(True)                    
@@ -393,6 +403,7 @@ class OBJECT_OT_WeldButton(bpy.types.Operator):
             self.report({'ERROR'}, 'Select 2 objects or spline')
             return {'FINISHED'}
         else:
+            surfaces=bpy.context.selected_objects
             obje='' 
             iconname=bpy.context.scene.my_thumbnails
             if iconname=='icon_1.png': obje='Weld_1'
@@ -529,10 +540,10 @@ class OBJECT_OT_WeldButton(bpy.types.Operator):
             
             listofwelds=[]
             
-            for g in guides: listofwelds.append(MakeWeldFromCurve(g,edge_length,obje,matrix,empty=[]))
+            for g in guides: listofwelds.append(MakeWeldFromCurve(g,edge_length,obje,matrix,surfaces))
             
             for o in listofwelds: o.select_set(True)
-    	
+        
             
             remove_obj(OBJ3.name)
             remove_obj(OBJ4.name)
@@ -616,6 +627,7 @@ class OBJECT_OT_ShapeModifyModal(bpy.types.Operator):
                         
         return {'PASS_THROUGH'}
     def cancel(self, context):
+        enabledatatransfer(self.obj)
         bpy.context.view_layer.objects.active=self.obj
         destroyLattice(self)
         removenode()
@@ -623,8 +635,8 @@ class OBJECT_OT_ShapeModifyModal(bpy.types.Operator):
         bpy.context.scene.shapebuttonname="Modify"
         wm = context.window_manager
         wm.event_timer_remove(self._timer)    
-    def execute(self, context):        
-        obj=bpy.context.view_layer.objects.active
+    def execute(self, context):              
+        obj=bpy.context.view_layer.objects.active 
         cleanupWeld(obj)
         lattice_presence=False
         lattice=None 
@@ -681,11 +693,22 @@ class OBJECT_OT_ShapeModifyModal(bpy.types.Operator):
                         bpy.data.node_groups['WeldCurveData'].nodes[curve_node_mapping["WeldCurve"]].mapping.curves[3].points.new(obj["shape_points"][counter],obj["shape_points"][counter+1])
                     counter=counter+2
             bpy.data.node_groups['WeldCurveData'].nodes[curve_node_mapping["WeldCurve"]].mapping.update() 
-        #starting curve defined according to custom property of weld object   
+        #starting curve defined according to custom property of weld object
+        disabledatatransfer(self.obj)   
         wm = context.window_manager
         self._timer = wm.event_timer_add(0.1, window=context.window)
         wm.modal_handler_add(self)
         return {'RUNNING_MODAL'}    
+
+def disabledatatransfer(obj):
+    for m in obj.modifiers:
+        if m.type=='DATA_TRANSFER' or m.type=='SHRINKWRAP' or m.type=='VERTEX_WEIGHT_PROXIMITY':
+            m.show_viewport=False
+    
+def enabledatatransfer(obj):
+    for m in obj.modifiers:
+        if m.type=='DATA_TRANSFER' or m.type=='SHRINKWRAP' or m.type=='VERTEX_WEIGHT_PROXIMITY':
+            m.show_viewport=True
 
 def cleanupWeld(obj):
     bpy.ops.object.mode_set(mode='OBJECT')
@@ -693,6 +716,9 @@ def cleanupWeld(obj):
     oldactive=bpy.context.view_layer.objects.active
     bpy.ops.object.select_all(action='DESELECT')
     oldobject=obj
+    oldmaterials=obj.data.materials
+    angle=obj.data.auto_smooth_angle
+    autosmooth=obj.data.use_auto_smooth
     current_path = os.path.dirname(os.path.realpath(__file__))
     blendfile = os.path.join(current_path, "weld.blend")
     section   = "\\Object\\"
@@ -709,11 +735,26 @@ def cleanupWeld(obj):
     bpy.context.view_layer.objects.active = newobject
     oldobject.select_set(True)
     bpy.ops.object.make_links_data(type='OBDATA')
+    counter=0
+    for m in oldmaterials:
+        print(counter)
+        try:
+            oldactive.data.materials[counter] = oldmaterials[counter]
+        except:
+            oldactive.data.materials.append(oldmaterials[counter])    
+        counter=counter+1    
     bpy.ops.object.select_all(action='DESELECT')
     oldobject.select_set(True)
     bpy.ops.object.make_single_user(type='SELECTED_OBJECTS', obdata=True)
     remove_obj(newobject.name)  
     bpy.context.view_layer.objects.active=oldactive
+    oldactive.data.use_auto_smooth=autosmooth    
+    verts = []
+    for vert in oldactive.data.vertices:
+        verts.append(vert.index)
+    for vg in oldactive.vertex_groups:     
+        vg.add(verts,1.0,'ADD')
+    oldactive.data.auto_smooth_angle=angle
     for o in oldselected: o.select_set(True) 
 
 def destroyLattice(self):
@@ -1020,10 +1061,68 @@ def CalculateCurveLength(curve,cyclic):
     bpy.ops.object.delete()        
     return(edge_length)
 
+def ScanForSurfaces(curve):
+    surfaces=[]
+    for p in curve.data.splines[0].points:
+        #tu rob raycast i sprawdz meshe w poblizu
+        direction=(0, 0, 1)
+        origin=(p.co.x,p.co.y,p.co.z)
+        hit=None
+        try:
+            for i in range(0,5):
+                if i==0: direction=(0, 0, 1)
+                if i==1: direction=(0, 0, -1)
+                if i==2: direction=(0, 1, 0)
+                if i==3: direction=(0, -1, 0)
+                if i==4: direction=(1, 0, 0)
+                if i==5: direction=(-1, 0, 0)
+                hit=bpy.context.scene.ray_cast(bpy.context.view_layer, origin, direction, distance=0.00001)
+                if hit[0]:
+                    break
+            if not hit[4] in surfaces and not hit[4]==None: surfaces.append(hit[4])    
+        except:
+            pass    
+    return surfaces
+
 def AddBlending(obj,surfaces):
-    print(obj.name)
-    for s in surfaces:
-        print(s.name)
+    if bpy.context.scene.surfaceblend:
+        if not bpy.context.scene.type=='Decal':        
+            print(obj.name)
+            vgs=[]
+            counter=0
+            obj.data.use_auto_smooth = True
+            obj.data.auto_smooth_angle = 3.14159
+            for s in surfaces:
+                vg=obj.vertex_groups.new(name=s.name)
+                verts = []
+                for vert in obj.data.vertices:
+                    verts.append(vert.index)
+                vg.add(verts,1.0,'ADD')
+                vgs.append(vg)
+                vwp=obj.modifiers.new(name='VWP_'+s.name,type='VERTEX_WEIGHT_PROXIMITY')
+                vwp.vertex_group=vg.name
+                vwp.target=s
+                vwp.falloff_type='SHARP'            
+                vwp.proximity_mode='GEOMETRY'            
+                vwp.proximity_geometry={'FACE'}
+                vwp.invert_falloff=True
+                vwp.min_dist=0
+                vwp.max_dist=0.012
+            for s in surfaces:
+                swm=obj.modifiers.new(name='SW_'+s.name,type='SHRINKWRAP')    
+                swm.target=s
+                swm.offset=0.000001  
+                swm.vertex_group=vgs[counter].name
+                counter=counter+1
+            counter=0    
+            for s in surfaces:
+                dtm=obj.modifiers.new(name='DT_'+s.name,type='DATA_TRANSFER')    
+                dtm.object=s
+                dtm.use_loop_data = True
+                dtm.loop_mapping = 'POLYINTERP_NEAREST'
+                dtm.vertex_group=vgs[counter].name
+                dtm.data_types_loops = {'CUSTOM_NORMAL'}
+                counter=counter+1
 
 def MakeWeldFromCurve(OBJ1,edge_length,obje,matrix,surfaces):
     current_path = os.path.dirname(os.path.realpath(__file__))
@@ -1072,8 +1171,8 @@ def MakeWeldFromCurve(OBJ1,edge_length,obje,matrix,surfaces):
     #bpy.ops.object.modifier_apply(modifier='curve')
     bpy.ops.object.select_all(action = 'DESELECT')
     OBJ_WELD.select_set(True)  
-    bpy.context.view_layer.objects.active = OBJ_WELD  
-    AddBlending(OBJ_WELD,surfaces):  
+    bpy.context.view_layer.objects.active = OBJ_WELD
+    AddBlending(OBJ_WELD,surfaces)
     return(OBJ_WELD)  
     #bpy.ops.object.delete() 
 
@@ -1156,6 +1255,7 @@ class PANEL_PT_WelderToolsPanel(bpy.types.Panel):
         row.enabled=not bpy.context.scene.welddrawing
         row=self.layout.row()
         row.prop(context.scene, "cyclic")
+        row.prop(context.scene, "surfaceblend")
         row=self.layout.row()
         row.prop(context.scene, 'type', expand=True)
         
@@ -1255,6 +1355,7 @@ OBJECT_OT_ShapeModifyModal,
 OBJECT_OT_OptimizeButton
 )
 bpy.types.Scene.cyclic=bpy.props.BoolProperty(name="cyclic", description="cyclic",default=True)
+bpy.types.Scene.surfaceblend=bpy.props.BoolProperty(name="Surface blend", description="Surface blend",default=False)
 bpy.types.Scene.type=bpy.props.EnumProperty(items=[
     ("Geometry", "Geometry", "Geometry", 0),
     ("Decal", "Decal", "Decal", 1),
