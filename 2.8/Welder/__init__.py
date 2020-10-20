@@ -32,7 +32,7 @@ from bpy_extras.view3d_utils import (
 bl_info = {
     "name": "Welder",
     "author": "Łukasz Hoffmann",
-    "version": (1,1,4),
+    "version": (1,1,5),
     "location": "View 3D > Object Mode > Tool Shelf",
     "wiki_url": "https://gumroad.com/l/lQVzQ",
     "tracker_url": "https://blenderartists.org/t/welder/672478/1",
@@ -761,7 +761,7 @@ def destroyLattice(self):
     bpy.ops.object.mode_set(mode='OBJECT')
     for m in self.obj.modifiers:
         if m.type=="LATTICE" and m.object==self.obj_lattice:
-            bpy.ops.object.modifier_apply(apply_as='DATA',modifier=m.name)
+            bpy.ops.object.modifier_apply(modifier=m.name)
     remove_obj(self.obj_lattice.name)        
     #print(self.obj_lattice)
 
@@ -772,7 +772,7 @@ def applymods(obj):
         bpy.ops.object.select_all(action='DESELECT')
         obj.select_set(True)
         bpy.context.view_layer.objects.active = obj
-        bpy.ops.object.modifier_apply(apply_as='DATA',modifier=m.name)
+        bpy.ops.object.modifier_apply(modifier=m.name)
     bpy.context.view_layer.objects.active=oldactive
     for o in oldselected: o.select_set(True)
 
