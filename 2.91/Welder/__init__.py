@@ -32,12 +32,12 @@ from bpy_extras.view3d_utils import (
 bl_info = {
     "name": "Welder",
     "author": "Łukasz Hoffmann",
-    "version": (1,1,6),
+    "version": (1,1,8),
     "location": "View 3D > Object Mode > Tool Shelf",
     "wiki_url": "https://gumroad.com/l/lQVzQ",
     "tracker_url": "https://blenderartists.org/t/welder/672478/1",
     "blender": (2, 91, 0),
-    "description": "Generate weld along the odge of intersection of two objects",
+    "description": "Generate weld along the edge of intersection of two objects",
     "warning": "",
     "category": "Object",
     }
@@ -104,7 +104,6 @@ class OBJECT_OT_WelderDrawOperator(bpy.types.Operator):
                     if get_mouse_3d_on_mesh(self,event,context) is not None:
                         ishit,hit=get_mouse_3d_on_mesh(self,event,context)
                         if (ishit): 
-                            print("test")
                             self.mouse_path.append(hit)
                             
                 
@@ -184,11 +183,7 @@ class OBJECT_OT_WelderDrawOperator(bpy.types.Operator):
         self.phase=0
         self.obje='' 
         iconname=bpy.context.scene.my_thumbnails
-        if iconname=='icon_1.png': self.obje='Weld_1'
-        if iconname=='icon_2.png': self.obje='Weld_2'
-        if iconname=='icon_3.png': self.obje='Weld_3'
-        if iconname=='icon_4.png': self.obje='Weld_4'
-        if iconname=='icon_5.png': self.obje='Weld_5'
+        self.obje=weldchose(iconname)
         if self.obje=='': return {'FINISHED'}
         if bpy.context.scene.type=='Decal': self.obje=self.obje+'_decal'
         self.lmb = False
@@ -226,6 +221,15 @@ class OBJECT_OT_WelderDrawOperator(bpy.types.Operator):
         #context.window_manager.event_timer_remove(self.draw_event)
         self.draw_event  = None
         self.drawended=True
+
+def weldchose(iconname):
+    if iconname=='icon_1.png': return 'Weld_1'
+    if iconname=='icon_2.png': return 'Weld_2'
+    if iconname=='icon_3.png': return 'Weld_3'
+    if iconname=='icon_4.png': return 'Weld_4'
+    if iconname=='icon_5.png': return 'Weld_5'
+    if iconname=='icon_6.png': return 'Weld_6'
+    return ''    
 
 def switchkeymap(state):
     x = bpy.context.window_manager.keyconfigs[2].keymaps['3D View'].keymap_items
@@ -379,11 +383,7 @@ class OBJECT_OT_WeldButton(bpy.types.Operator):
                     bpy.ops.object.select_all(action = 'DESELECT')
             obje='' 
             iconname=bpy.context.scene.my_thumbnails
-            if iconname=='icon_1.png': obje='Weld_1'
-            if iconname=='icon_2.png': obje='Weld_2'
-            if iconname=='icon_3.png': obje='Weld_3'
-            if iconname=='icon_4.png': obje='Weld_4'
-            if iconname=='icon_5.png': obje='Weld_5'
+            obje=weldchose(iconname)
             if obje=='': return {'FINISHED'}   
             if bpy.context.scene.type=='Decal': obje=obje+'_decal'   
             welds=[] 
@@ -410,11 +410,7 @@ class OBJECT_OT_WeldButton(bpy.types.Operator):
             surfaces=bpy.context.selected_objects
             obje='' 
             iconname=bpy.context.scene.my_thumbnails
-            if iconname=='icon_1.png': obje='Weld_1'
-            if iconname=='icon_2.png': obje='Weld_2'
-            if iconname=='icon_3.png': obje='Weld_3'
-            if iconname=='icon_4.png': obje='Weld_4'
-            if iconname=='icon_5.png': obje='Weld_5'
+            obje=weldchose(iconname)
             if obje=='': return {'FINISHED'}
             if bpy.context.scene.type=='Decal': obje=obje+'_decal'
             def is_inside(p, obj):
@@ -1080,11 +1076,13 @@ def ScanForSurfaces(curve):
                 if i==3: direction=(0, -1, 0)
                 if i==4: direction=(1, 0, 0)
                 if i==5: direction=(-1, 0, 0)
-                hit=bpy.context.scene.ray_cast(bpy.context.view_layer, origin, direction, distance=0.00001)
+                depsgraph = bpy.context.evaluated_depsgraph_get()
+                hit=bpy.context.scene.ray_cast(depsgraph, origin, direction, distance=0.00001)
                 if hit[0]:
                     break
             if not hit[4] in surfaces and not hit[4]==None: surfaces.append(hit[4])    
-        except:
+        except Exception as e:
+            print(e)
             pass    
     return surfaces
 
@@ -1156,9 +1154,9 @@ def MakeWeldFromCurve(OBJ1,edge_length,obje,matrix,surfaces):
     array.use_relative_offset=False
     array.use_constant_offset=True
     array.merge_threshold=0.0001
-    count=int(float(edge_length)/0.04331)+1
-    array.count=count
-    offset=0.04331
+    offset=OBJ_WELD["beadLength"]
+    count=int(float(edge_length)/offset)+1
+    array.count=count    
     if object=="Weld_3": 
         offset=0.1
         array.count=floor(count/2.3)-1
