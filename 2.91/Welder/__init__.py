@@ -32,7 +32,7 @@ from bpy_extras.view3d_utils import (
 bl_info = {
     "name": "Welder",
     "author": "Łukasz Hoffmann",
-    "version": (1,1,8),
+    "version": (1,1,9),
     "location": "View 3D > Object Mode > Tool Shelf",
     "wiki_url": "https://gumroad.com/l/lQVzQ",
     "tracker_url": "https://blenderartists.org/t/welder/672478/1",
@@ -229,6 +229,7 @@ def weldchose(iconname):
     if iconname=='icon_4.png': return 'Weld_4'
     if iconname=='icon_5.png': return 'Weld_5'
     if iconname=='icon_6.png': return 'Weld_6'
+    if iconname=='icon_7.png': return 'Weld_7'
     return ''    
 
 def switchkeymap(state):
@@ -396,13 +397,15 @@ class OBJECT_OT_WeldButton(bpy.types.Operator):
                     bpy.ops.object.mode_set(mode='OBJECT')            
                     edge_length=CalculateCurveLength(o,o.data.splines[0].use_cyclic_u)
                     matrix=o.matrix_world  
-                    objweld=MakeWeldFromCurve(o,edge_length,obje,matrix,obj)
+                    surfaces=ScanForSurfaces(o)
+                    objweld=MakeWeldFromCurve(o,edge_length,obje,matrix,surfaces)
                     welds.append(objweld)
             for o in welds:   
                 o.select_set(True)                    
                 bpy.context.view_layer.objects.active = o        
             return bpy.ops.weld.translate('INVOKE_DEFAULT')
             return {'FINISHED'}
+        
         if (len(bpy.context.selected_objects)!=2):
             self.report({'ERROR'}, 'Select 2 objects or spline')
             return {'FINISHED'}
@@ -1080,7 +1083,10 @@ def ScanForSurfaces(curve):
                 hit=bpy.context.scene.ray_cast(depsgraph, origin, direction, distance=0.00001)
                 if hit[0]:
                     break
-            if not hit[4] in surfaces and not hit[4]==None: surfaces.append(hit[4])    
+            if not hit[4] in surfaces and not hit[4]==None:
+                print("Surface is:")
+                print(hit[4])
+                surfaces.append(hit[4])    
         except Exception as e:
             print(e)
             pass    
