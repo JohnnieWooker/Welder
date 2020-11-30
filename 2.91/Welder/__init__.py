@@ -32,7 +32,7 @@ from bpy_extras.view3d_utils import (
 bl_info = {
     "name": "Welder",
     "author": "Łukasz Hoffmann",
-    "version": (1,1,9),
+    "version": (1,2,0),
     "location": "View 3D > Object Mode > Tool Shelf",
     "wiki_url": "https://gumroad.com/l/lQVzQ",
     "tracker_url": "https://blenderartists.org/t/welder/672478/1",
@@ -258,8 +258,8 @@ class OBJECT_OT_WeldTransformModal(bpy.types.Operator):
                         self.OBJ_WELD[i].scale[0]=multiplificator
                         self.OBJ_WELD[i].scale[1]=multiplificator
                         self.OBJ_WELD[i].scale[2]=multiplificator
-                        self.array[i]=self.OBJ_WELD[i].modifiers["array"]                
-                        self.array[i].count=int(self.old_count[i]/multiplificator)+1
+                        #self.array[i]=self.OBJ_WELD[i].modifiers["array"]                
+                        #self.array[i].count=int(self.old_count[i]/multiplificator)+1
             if (self.phase==2):
                 self.offset = (self._initial_mouse - Vector((event.mouse_x, event.mouse_y, 0.0))) * 0.02
                 multiplificator=(self.offset).length
@@ -626,7 +626,7 @@ class OBJECT_OT_ShapeModifyModal(bpy.types.Operator):
                 counter=counter+2
             self.obj["shape_points"]=list
             #translating curve position into world position
-            translatepoints(self.obj_lattice,matrixtolist(list),lattice_error_thresh)
+            translatepoints(self,matrixtolist(list),lattice_error_thresh)
                         
         return {'PASS_THROUGH'}
     def cancel(self, context):
@@ -638,8 +638,9 @@ class OBJECT_OT_ShapeModifyModal(bpy.types.Operator):
         bpy.context.scene.shapebuttonname="Modify"
         wm = context.window_manager
         wm.event_timer_remove(self._timer)    
-    def execute(self, context):              
+    def execute(self, context):         
         obj=bpy.context.view_layer.objects.active 
+        matrix=obj.matrix_world
         cleanupWeld(obj)
         lattice_presence=False
         lattice=None 
@@ -661,10 +662,11 @@ class OBJECT_OT_ShapeModifyModal(bpy.types.Operator):
             bpy.ops.object.add(type='LATTICE', align='VIEW', enter_editmode=False, location=obj.location,)
             obj_lattice=bpy.context.view_layer.objects.active
             hidemods(obj,False)  
-            print(dimensions)
+            #print(dimensions)
             obj_lattice.rotation_euler=obj.rotation_euler
             obj_lattice.rotation_euler[0]=obj_lattice.rotation_euler[0]+0.785398163
-            obj_lattice.dimensions=(dimensions[0]*obj.scale[0],dimensions[1]*obj.scale[1],dimensions[2]*obj.scale[2])
+            scalecorrected=obj.scale
+            obj_lattice.dimensions=(dimensions[0]*scalecorrected[0],dimensions[1]*scalecorrected[1],dimensions[2]*scalecorrected[2])
             obj_lattice.location=getcenterofmass(obj)
             hidemods(obj,True)  
             lattice.object=obj_lattice    
@@ -673,10 +675,10 @@ class OBJECT_OT_ShapeModifyModal(bpy.types.Operator):
         self.obj_lattice=obj_lattice   
         bpy.context.view_layer.objects.active=obj   
         makemodfirst(lattice)
-        #change lattice matrix 
+        #change lattice matrix         
         obj_lattice.data.points_u=1
         obj_lattice.data.points_v=1
-        obj_lattice.data.points_w=2     
+        obj_lattice.data.points_w=2   
         #define starting curve        
         '''
         for p in c.points:
@@ -703,6 +705,18 @@ class OBJECT_OT_ShapeModifyModal(bpy.types.Operator):
         wm.modal_handler_add(self)
         return {'RUNNING_MODAL'}    
 
+def add_driver(OBJ_WELD,array,number):
+    fcurve=array.driver_add('count')
+    driver = fcurve.driver
+    var = driver.variables.new()
+    var.type = 'TRANSFORMS'
+    var.name = "size"
+    target = var.targets[0]
+    target.transform_type = "SCALE_X"
+    target.id = OBJ_WELD.id_data
+    target.data_path = "scale[0]"
+    driver.expression = str(number)+"/size+1"
+
 def disabledatatransfer(obj):
     for m in obj.modifiers:
         if m.type=='DATA_TRANSFER' or m.type=='SHRINKWRAP' or m.type=='VERTEX_WEIGHT_PROXIMITY':
@@ -714,57 +728,21 @@ def enabledatatransfer(obj):
             m.show_viewport=True
 
 def cleanupWeld(obj):
-    bpy.ops.object.mode_set(mode='OBJECT')
-    oldselected=bpy.context.selected_objects
-    oldactive=bpy.context.view_layer.objects.active
-    bpy.ops.object.select_all(action='DESELECT')
-    oldobject=obj
-    oldmaterials=obj.data.materials
-    angle=obj.data.auto_smooth_angle
-    autosmooth=obj.data.use_auto_smooth
-    current_path = os.path.dirname(os.path.realpath(__file__))
-    blendfile = os.path.join(current_path, "weld.blend")
-    section   = "\\Object\\"
-    object=obj["Weld"]
-    filepath  = blendfile + section + object
-    directory = blendfile + section
-    filename  = object
-    bpy.ops.wm.append(
-        filepath=filepath, 
-        filename=filename,
-        directory=directory)
-    newobject=bpy.context.selected_objects[0] 
-    bpy.ops.object.select_all(action='DESELECT')
-    bpy.context.view_layer.objects.active = newobject
-    oldobject.select_set(True)
-    bpy.ops.object.make_links_data(type='OBDATA')
-    counter=0
-    for m in oldmaterials:
-        print(counter)
-        try:
-            oldactive.data.materials[counter] = oldmaterials[counter]
-        except:
-            oldactive.data.materials.append(oldmaterials[counter])    
-        counter=counter+1    
-    bpy.ops.object.select_all(action='DESELECT')
-    oldobject.select_set(True)
-    bpy.ops.object.make_single_user(type='SELECTED_OBJECTS', obdata=True)
-    remove_obj(newobject.name)  
-    bpy.context.view_layer.objects.active=oldactive
-    oldactive.data.use_auto_smooth=autosmooth    
-    verts = []
-    for vert in oldactive.data.vertices:
-        verts.append(vert.index)
-    for vg in oldactive.vertex_groups:     
-        vg.add(verts,1.0,'ADD')
-    oldactive.data.auto_smooth_angle=angle
-    for o in oldselected: o.select_set(True) 
+    if (obj.data.shape_keys!=None):
+        if (len(obj.data.shape_keys.key_blocks.keys())>1):
+            obj.active_shape_key_index = 1
+            bpy.ops.object.shape_key_remove()
 
 def destroyLattice(self):
     bpy.ops.object.mode_set(mode='OBJECT')
     for m in self.obj.modifiers:
         if m.type=="LATTICE" and m.object==self.obj_lattice:
-            bpy.ops.object.modifier_apply(modifier=m.name)
+            #bpy.ops.object.modifier_apply(modifier=m.name)
+            bpy.ops.object.modifier_apply_as_shapekey(keep_modifier=False, modifier=m.name)
+            me = self.obj.data
+            #bpy.context.object.active_shape_key_index = 1
+            me.shape_keys.key_blocks["Lattice"].value = 1
+            
     remove_obj(self.obj_lattice.name)        
     #print(self.obj_lattice)
 
@@ -810,7 +788,8 @@ def matrixtolist(matrix):
         if (i%2==1):list.append(Vector((x,y)))    
     return list
 
-def translatepoints(lattice,points,error):    
+def translatepoints(self,points,error):    
+    lattice=self.obj_lattice
     for i in range(len(points)):
         points[i][1]=points[i][1]-0.5
         points[i][1]=points[i][1]*-1
@@ -818,8 +797,8 @@ def translatepoints(lattice,points,error):
         points[i][0]=points[i][0]-0.5
     lattice.data.points_w=len(points)        
     for i in range(lattice.data.points_w):
-        if (abs(abs(lattice.data.points[i].co_deform.y)-abs(points[i][1]))>error): lattice.data.points[i].co_deform.y=points[i][1]
-        if (abs(abs(lattice.data.points[i].co_deform.z)-abs(points[i][0]))>error):lattice.data.points[i].co_deform.z=points[i][0]
+        if (abs(abs(lattice.data.points[i].co_deform.y)-abs(points[i][1]))>error): lattice.data.points[i].co_deform.y=points[i][1]*10/self.obj.scale[1]
+        if (abs(abs(lattice.data.points[i].co_deform.z)-abs(points[i][0]))>error):lattice.data.points[i].co_deform.z=points[i][0]*10/self.obj.scale[2]
 
 def removenode():
     curve_node_mapping.clear()
@@ -1162,7 +1141,7 @@ def MakeWeldFromCurve(OBJ1,edge_length,obje,matrix,surfaces):
     array.merge_threshold=0.0001
     offset=OBJ_WELD["beadLength"]
     count=int(float(edge_length)/offset)+1
-    array.count=count    
+    add_driver(OBJ_WELD,array,count)
     if object=="Weld_3": 
         offset=0.1
         array.count=floor(count/2.3)-1
