@@ -10,6 +10,7 @@ johnniewooker@gmail.com
 
 '''
 
+
 import bpy
 import bgl
 import blf
@@ -20,7 +21,7 @@ import mathutils
 import os 
 from mathutils import Vector
 import bpy.utils.previews
-from math import (sin,pow,floor,ceil)
+from math import (sin,pow,floor,ceil,copysign)
 from bpy.props import StringProperty, EnumProperty
 from bpy.types import AddonPreferences
 from bpy_extras.view3d_utils import (
@@ -29,10 +30,12 @@ from bpy_extras.view3d_utils import (
     region_2d_to_location_3d
 )
 
+debug=False
+
 bl_info = {
     "name": "Welder",
     "author": "Łukasz Hoffmann",
-    "version": (1,2,0),
+    "version": (1,2,2),
     "location": "View 3D > Object Mode > Tool Shelf",
     "wiki_url": "https://gumroad.com/l/lQVzQ",
     "tracker_url": "https://blenderartists.org/t/welder/672478/1",
@@ -42,21 +45,42 @@ bl_info = {
     "category": "Object",
     }
 
-def generate_previews():
-    # We are accessing all of the information that we generated in the register function below
-    pcoll = preview_collections["thumbnail_previews"]
-    image_location = pcoll.images_location
-    VALID_EXTENSIONS = ('.png', '.jpg', '.jpeg')
-    
+def surfaceBlendUpdate(self, context):
+    if (context.active_object != None):
+        weld=bpy.context.view_layer.objects.active
+        if (weld.weld.name != None):
+            if weld.weld.blend:
+                if debug: print("blending on")
+            else:
+                if debug: print("blending off")                
+            return
+    return   
+
+class WelderVariables(bpy.types.PropertyGroup):
+    object: bpy.props.PointerProperty(name="object", type=bpy.types.Object)   
+
+class WelderSettings(bpy.types.PropertyGroup):
+    name: bpy.props.StringProperty()
+    blend: bpy.props.BoolProperty(name="Surface blend", description="Surface blend", default=False, update=surfaceBlendUpdate)
+    thumbnails: bpy.props.EnumProperty(items=[])
+
+def generate_previews(redraw=False):
     enum_items = []
-    
-    # Generate the thumbnails
-    for i, image in enumerate(os.listdir(image_location)):
-        if image.endswith(VALID_EXTENSIONS):
-            filepath = os.path.join(image_location, image)
-            thumb = pcoll.load(filepath, filepath, 'IMAGE')
-            enum_items.append((image, image, "", thumb.icon_id, i))
+    if redraw:
+        enum_items.append(("test", "test", "", 0, 0))
+    else:    
+        # We are accessing all of the information that we generated in the register function below
+        pcoll = preview_collections["thumbnail_previews"]
+        image_location = pcoll.images_location
+        VALID_EXTENSIONS = ('.png', '.jpg', '.jpeg')
             
+        # Generate the thumbnails
+        for i, image in enumerate(os.listdir(image_location)):
+            if image.endswith(VALID_EXTENSIONS):
+                filepath = os.path.join(image_location, image)
+                thumb = pcoll.load(filepath, filepath, 'IMAGE')
+                enum_items.append((image, image, "", thumb.icon_id, i))
+                    
     return enum_items 
 
 bpy.types.Scene.weldsmooth=bpy.props.BoolProperty(
@@ -74,9 +98,7 @@ lattice_error_thresh=0.0001
 images_path = pcoll.images_location = os.path.join(os.path.dirname(__file__), "welder_images")
 pcoll.images_location = bpy.path.abspath(images_path)
 preview_collections["thumbnail_previews"] = pcoll
-bpy.types.Scene.my_thumbnails = EnumProperty(
-    items=generate_previews(),
-    )
+bpy.types.Scene.my_thumbnails = EnumProperty(items=generate_previews())
 
 class OBJECT_OT_WelderDrawOperator(bpy.types.Operator):
     bl_idname = "weld.draw"
@@ -249,10 +271,13 @@ class OBJECT_OT_WeldTransformModal(bpy.types.Operator):
     #def execute(self, context):
     def modal(self, context, event):
         if event.type == 'MOUSEMOVE':
-            if (self.phase==1):                
-                self.offset = (self._initial_mouse - Vector((event.mouse_x, event.mouse_y, 0.0))) * 0.02
-                multiplificator=(self.offset).length
-                if(multiplificator<1):multiplificator=1   
+            if (self.phase==1):
+                #self.offset = (self._initial_mouse - Vector((event.mouse_x, event.mouse_y, 0.0))) * 0.02
+                #sign=copysign(1,self._initial_mouse[0]-event.mouse_x)  
+                #if (sign==-1): sign=copysign(1,self._initial_mouse[0]-event.mouse_y)      
+                self.offset=((self._initial_mouse.x-event.mouse_x)+(self._initial_mouse.y-event.mouse_y))* 0.02             
+                multiplificator=1+self.offset
+                if(multiplificator<0.05):multiplificator=0.05
                 for i in range(len(self.OBJ_WELD)):
                     if len(self.array)==len(self.OBJ_WELD):           
                         self.OBJ_WELD[i].scale[0]=multiplificator
@@ -435,8 +460,10 @@ class OBJECT_OT_WeldButton(bpy.types.Operator):
             OBJ3=bpy.context.selected_objects[0]
             OBJ4=bpy.context.selected_objects[1]
             bool_two = OBJ1.modifiers.new(type="BOOLEAN", name="bool 2")
+            bool_two.use_self=True
             bool_two.object = OBJ2
             bool_two.operation = 'INTERSECT'
+            bool_two.solver='FAST'
             bpy.context.view_layer.objects.active = OBJ1
             bpy.ops.object.modifier_apply (modifier='bool 2')
             bpy.ops.object.select_all(action = 'DESELECT')
@@ -658,7 +685,7 @@ class OBJECT_OT_ShapeModifyModal(bpy.types.Operator):
             lattice=obj.modifiers.new(name="Lattice", type='LATTICE') 
         #lattice object addition
         if lattice.object==None:  
-            print(obj["shape_points"])
+            if debug: print(obj["shape_points"])
             bpy.ops.object.add(type='LATTICE', align='VIEW', enter_editmode=False, location=obj.location,)
             obj_lattice=bpy.context.view_layer.objects.active
             hidemods(obj,False)  
@@ -726,6 +753,12 @@ def enabledatatransfer(obj):
     for m in obj.modifiers:
         if m.type=='DATA_TRANSFER' or m.type=='SHRINKWRAP' or m.type=='VERTEX_WEIGHT_PROXIMITY':
             m.show_viewport=True
+            if m.type=='VERTEX_WEIGHT_PROXIMITY':
+                m.max_dist=0.002*obj.scale[1]
+        if m.type=='CURVE' and obj.scale[1]<1:
+            curve=m.object
+            if (not curve==None):
+                curve.data.resolution_u=1/obj.scale[2]*3
 
 def cleanupWeld(obj):
     if (obj.data.shape_keys!=None):
@@ -1063,7 +1096,7 @@ def ScanForSurfaces(curve):
                 if hit[0]:
                     break
             if not hit[4] in surfaces and not hit[4]==None:
-                print("Surface is:")
+                if debug: print("Surface is:")
                 print(hit[4])
                 surfaces.append(hit[4])    
         except Exception as e:
@@ -1074,7 +1107,7 @@ def ScanForSurfaces(curve):
 def AddBlending(obj,surfaces):
     if bpy.context.scene.surfaceblend:
         if not bpy.context.scene.type=='Decal':        
-            print(obj.name)
+            if debug: print(obj.name)
             vgs=[]
             counter=0
             obj.data.use_auto_smooth = True
@@ -1094,7 +1127,7 @@ def AddBlending(obj,surfaces):
                 vwp.proximity_geometry={'FACE'}
                 vwp.invert_falloff=True
                 vwp.min_dist=0
-                vwp.max_dist=0.012
+                vwp.max_dist=0.002*obj.scale[1]
             for s in surfaces:
                 swm=obj.modifiers.new(name='SW_'+s.name,type='SHRINKWRAP')    
                 swm.target=s
@@ -1131,9 +1164,14 @@ def MakeWeldFromCurve(OBJ1,edge_length,obje,matrix,surfaces):
         directory=directory)
     #print(filepath)    
     OBJ_WELD=bpy.context.selected_objects[0]
-    OBJ_WELD["Dimensions"]=OBJ_WELD.dimensions
     OBJ_WELD.matrix_world=matrix
+    #adding properties to weldobject
+    OBJ_WELD.weld.name=object
+    OBJ_WELD.weld.blend=bpy.context.scene.surfaceblend
+    #print(bpy.context.scene.my_thumbnails)
+    OBJ_WELD["Dimensions"]=OBJ_WELD.dimensions    
     addprop(OBJ_WELD,object)
+    
     array = OBJ_WELD.modifiers.new(type="ARRAY", name="array")
     array.use_merge_vertices=True
     array.use_relative_offset=False
@@ -1151,7 +1189,7 @@ def MakeWeldFromCurve(OBJ1,edge_length,obje,matrix,surfaces):
     array.constant_offset_displace[0]=offset
     curve=OBJ_WELD.modifiers.new(type="CURVE", name="curve")
     curve.object=OBJ1
-    OBJ1.data.resolution_u=int(count/2)
+    #OBJ1.data.resolution_u=int(count/2)
     bpy.data.objects[OBJ_WELD.name].select_set(True)
     bpy.context.view_layer.objects.active = OBJ1
     bpy.ops.object.modifier_apply(modifier='array')
@@ -1233,21 +1271,63 @@ class PANEL_PT_WelderToolsPanel(bpy.types.Panel):
     bl_region_type = "UI"
     bl_category = "Welder"
  
+    active=False 
+    weld=None
+ 
+    @classmethod
+    def poll(self, context):
+        if (context.active_object != None):
+            if bpy.context.view_layer.objects.active.get('Weld') is not None:         
+                self.weld=bpy.context.view_layer.objects.active           
+                self.active= True
+            else:
+                self.active= False
+        else:
+            self.active= True            
+        return True        
+ 
     def draw(self, context):
-        row=self.layout.row()
-        row.template_icon_view(context.scene, "my_thumbnails")
-        row.enabled=not bpy.context.scene.welddrawing
-        row=self.layout.row()
-        row.operator("weld.weld")
-        row.enabled=not bpy.context.scene.welddrawing
-        row=self.layout.row()
-        row.operator("weld.draw")
-        row.enabled=not bpy.context.scene.welddrawing
-        row=self.layout.row()
-        row.prop(context.scene, "cyclic")
-        row.prop(context.scene, "surfaceblend")
-        row=self.layout.row()
-        row.prop(context.scene, 'type', expand=True)
+        if (self.active):
+            try:
+                #row=self.layout.row()
+                #row.template_icon_view(self.weld.weld, "thumbnails") #add interactive and updatemethod
+                row=self.layout.row()
+                #row.prop(self.weld.weld,"name")
+                row=self.layout.row()
+                row.prop(getSpline(),"use_cyclic_u",text="cyclic")
+                #row.prop(self.weld.weld, "blend")
+            except:
+                pass    
+            '''
+            row.template_icon_view(context.scene, "my_thumbnails")
+            row.enabled=not bpy.context.scene.welddrawing
+            row=self.layout.row()
+            row.operator("weld.weld")
+            row.enabled=not bpy.context.scene.welddrawing
+            row=self.layout.row()
+            row.operator("weld.draw")
+            row.enabled=not bpy.context.scene.welddrawing
+            row=self.layout.row()
+            
+            row.prop(context.scene, "surfaceblend")
+            row=self.layout.row()
+            row.prop(context.scene, 'type', expand=True) 
+            ''' 
+        else:
+            row=self.layout.row()
+            row.template_icon_view(context.scene, "my_thumbnails")
+            row.enabled=not bpy.context.scene.welddrawing
+            row=self.layout.row()
+            row.operator("weld.weld")
+            row.enabled=not bpy.context.scene.welddrawing
+            row=self.layout.row()
+            row.operator("weld.draw")
+            row.enabled=not bpy.context.scene.welddrawing
+            row=self.layout.row()
+            row.prop(context.scene, "cyclic")
+            row.prop(context.scene, "surfaceblend")
+            row=self.layout.row()
+            row.prop(context.scene, 'type', expand=True)          
         
 class PANEL_PT_WelderSubPanelDynamic(bpy.types.Panel):        
     bl_label = "Shape"
@@ -1260,10 +1340,13 @@ class PANEL_PT_WelderSubPanelDynamic(bpy.types.Panel):
     @classmethod
     def poll(cls, context):
         if (context.active_object != None):
-            return bpy.context.view_layer.objects.active.get('Weld') is not None
+            if bpy.context.view_layer.objects.active.get('Weld') is not None:                
+                return True
+            else: return False
         else: return False
     
     def draw(self, context):  
+        #bpy.context.scene.cyclic=cehckIfCyclic()
         row=self.layout.row()
         row.operator("weld.shape", text=bpy.context.scene.shapebuttonname)
         box = self.layout.box() 
@@ -1274,6 +1357,14 @@ class PANEL_PT_WelderSubPanelDynamic(bpy.types.Panel):
         row=self.layout.row()
         row.operator("weld.optimize")     
 
+def getSpline():
+    weld=bpy.context.view_layer.objects.active
+    for m in weld.modifiers:
+        if m.type=="CURVE":
+            curve=m.object
+            return curve.data.splines[0]
+    return None    
+
 def update_welder_category(self, context):
     try:
         bpy.utils.unregister_class(PANEL_PT_WelderToolsPanel)
@@ -1283,7 +1374,7 @@ def update_welder_category(self, context):
     PANEL_PT_WelderToolsPanel.bl_category = context.preferences.addons[__name__].preferences.category
     PANEL_PT_WelderSubPanelDynamic.bl_category = context.preferences.addons[__name__].preferences.category
     bpy.utils.register_class(PANEL_PT_WelderToolsPanel)
-    bpy.utils.register_class(PANEL_PT_WelderSubPanelDynamic)
+    bpy.utils.register_class(PANEL_PT_WelderSubPanelDynamic) 
 
 class WelderPreferences(bpy.types.AddonPreferences):
     bl_idname = __name__
@@ -1334,15 +1425,17 @@ class WelderPreferences(bpy.types.AddonPreferences):
 
              
 classes =(
+PANEL_PT_WelderToolsPanel,
+PANEL_PT_WelderSubPanelDynamic,
 OBJECT_OT_WeldButton,
-#PANEL_PT_WelderToolsPanel,
 WelderPreferences,
-#PANEL_PT_WelderSubPanelDynamic,
 OBJECT_OT_WeldTransformModal,
 OBJECT_OT_WelderDrawOperator,
 OBJECT_OT_ShapeModifyButton,
 OBJECT_OT_ShapeModifyModal,
-OBJECT_OT_OptimizeButton
+OBJECT_OT_OptimizeButton,
+WelderVariables,
+WelderSettings
 )
 bpy.types.Scene.cyclic=bpy.props.BoolProperty(name="cyclic", description="cyclic",default=True)
 bpy.types.Scene.surfaceblend=bpy.props.BoolProperty(name="Surface blend", description="Surface blend",default=False)
@@ -1356,12 +1449,15 @@ def register():
         bpy.utils.register_class(cls)
     context = bpy.context
     prefs = context.preferences.addons[__name__].preferences
-    update_welder_category(prefs, context)    
+    update_welder_category(prefs, context)       
+    bpy.types.Object.weld = bpy.props.PointerProperty(type=WelderSettings)
 
 def unregister():
     for cls in classes:
+        if debug: print(cls)
         bpy.utils.unregister_class(cls)
-
+    #bpy.utils.unregister_class(PANEL_PT_WelderToolsPanel)
+    
 
 '''
 if __name__ == "__main__":
