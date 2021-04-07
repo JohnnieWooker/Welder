@@ -35,7 +35,7 @@ debug=False
 bl_info = {
     "name": "Welder",
     "author": "Łukasz Hoffmann",
-    "version": (1,2,2),
+    "version": (1,2,3),
     "location": "View 3D > Object Mode > Tool Shelf",
     "wiki_url": "https://gumroad.com/l/lQVzQ",
     "tracker_url": "https://blenderartists.org/t/welder/672478/1",
@@ -195,6 +195,7 @@ class OBJECT_OT_WelderDrawOperator(bpy.types.Operator):
             
         except Exception as e:    
             print(e)
+            bpy.context.Scene.shapemodified=False
             bpy.context.scene.welddrawing=False
             
         return {'PASS_THROUGH'}
@@ -270,55 +271,60 @@ class OBJECT_OT_WeldTransformModal(bpy.types.Operator):
     bl_label = "Weld modal transform"
     #def execute(self, context):
     def modal(self, context, event):
-        if event.type == 'MOUSEMOVE':
-            if (self.phase==1):
-                #self.offset = (self._initial_mouse - Vector((event.mouse_x, event.mouse_y, 0.0))) * 0.02
-                #sign=copysign(1,self._initial_mouse[0]-event.mouse_x)  
-                #if (sign==-1): sign=copysign(1,self._initial_mouse[0]-event.mouse_y)      
-                self.offset=((self._initial_mouse.x-event.mouse_x)+(self._initial_mouse.y-event.mouse_y))* 0.02             
-                multiplificator=1+self.offset
-                if(multiplificator<0.05):multiplificator=0.05
-                for i in range(len(self.OBJ_WELD)):
-                    if len(self.array)==len(self.OBJ_WELD):           
-                        self.OBJ_WELD[i].scale[0]=multiplificator
-                        self.OBJ_WELD[i].scale[1]=multiplificator
-                        self.OBJ_WELD[i].scale[2]=multiplificator
-                        #self.array[i]=self.OBJ_WELD[i].modifiers["array"]                
-                        #self.array[i].count=int(self.old_count[i]/multiplificator)+1
-            if (self.phase==2):
-                self.offset = (self._initial_mouse - Vector((event.mouse_x, event.mouse_y, 0.0))) * 0.02
-                multiplificator=(self.offset).length
-                for i in range(len(self.OBJ_WELD)):
-                    self.OBJ_WELD[i].rotation_euler[0]=multiplificator
-        elif event.type == 'LEFTMOUSE' and event.value in {'RELEASE'}:    
-            if (self.phase==2):
-                bpy.context.scene.welddrawing=False
-                for i in range(len(self.OBJ_WELD)): enabledatatransfer(self.OBJ_WELD[i])
-                bpy.ops.ed.undo_push()
-                return {'FINISHED'}   
-            if (self.phase==1):
-                self.phase=2
-                self._initial_mouse = Vector((event.mouse_x, event.mouse_y, 0.0))
-                return {'RUNNING_MODAL'} 
-        elif event.type in {'RIGHTMOUSE', 'ESC'} and event.value in {'RELEASE'}:
-            if (self.phase==2):
-                for i in range(len(self.OBJ_WELD)):
-                    self.OBJ_WELD[i].rotation_euler[0]=0    
-                bpy.context.scene.welddrawing=False
-                for i in range(len(self.OBJ_WELD)): enabledatatransfer(self.OBJ_WELD[i])
-                return {'CANCELLED'}
-            if (self.phase==1):
-                for i in range(len(self.OBJ_WELD)):
-                    if len(self.array)==len(self.OBJ_WELD):   
-                        self.OBJ_WELD[i].scale[0]=1
-                        self.OBJ_WELD[i].scale[1]=1
-                        self.OBJ_WELD[i].scale[2]=1
-                        self.array[i]=self.OBJ_WELD[i].modifiers["array"]
-                        self.array[i].count=self.old_count[i]
-                self.phase=2
-                self._initial_mouse = Vector((event.mouse_x, event.mouse_y, 0.0))
-                bpy.ops.ed.undo_push()
-                return {'RUNNING_MODAL'}             
+        try:
+            if event.type == 'MOUSEMOVE':
+                if (self.phase==1):
+                    #self.offset = (self._initial_mouse - Vector((event.mouse_x, event.mouse_y, 0.0))) * 0.02
+                    #sign=copysign(1,self._initial_mouse[0]-event.mouse_x)  
+                    #if (sign==-1): sign=copysign(1,self._initial_mouse[0]-event.mouse_y)      
+                    self.offset=((self._initial_mouse.x-event.mouse_x)+(self._initial_mouse.y-event.mouse_y))* 0.02             
+                    multiplificator=1+self.offset
+                    if(multiplificator<0.05):multiplificator=0.05
+                    for i in range(len(self.OBJ_WELD)):
+                        if len(self.array)==len(self.OBJ_WELD):           
+                            self.OBJ_WELD[i].scale[0]=multiplificator
+                            self.OBJ_WELD[i].scale[1]=multiplificator
+                            self.OBJ_WELD[i].scale[2]=multiplificator
+                            #self.array[i]=self.OBJ_WELD[i].modifiers["array"]                
+                            #self.array[i].count=int(self.old_count[i]/multiplificator)+1
+                if (self.phase==2):
+                    self.offset = (self._initial_mouse - Vector((event.mouse_x, event.mouse_y, 0.0))) * 0.02
+                    multiplificator=(self.offset).length
+                    for i in range(len(self.OBJ_WELD)):
+                        self.OBJ_WELD[i].rotation_euler[0]=multiplificator
+            elif event.type == 'LEFTMOUSE' and event.value in {'RELEASE'}:    
+                if (self.phase==2):
+                    bpy.context.scene.welddrawing=False
+                    for i in range(len(self.OBJ_WELD)): enabledatatransfer(self.OBJ_WELD[i])
+                    bpy.ops.ed.undo_push()
+                    return {'FINISHED'}   
+                if (self.phase==1):
+                    self.phase=2
+                    self._initial_mouse = Vector((event.mouse_x, event.mouse_y, 0.0))
+                    return {'RUNNING_MODAL'} 
+            elif event.type in {'RIGHTMOUSE', 'ESC'} and event.value in {'RELEASE'}:
+                if (self.phase==2):
+                    for i in range(len(self.OBJ_WELD)):
+                        self.OBJ_WELD[i].rotation_euler[0]=0    
+                    bpy.context.scene.welddrawing=False
+                    for i in range(len(self.OBJ_WELD)): enabledatatransfer(self.OBJ_WELD[i])
+                    return {'CANCELLED'}
+                if (self.phase==1):
+                    for i in range(len(self.OBJ_WELD)):
+                        if len(self.array)==len(self.OBJ_WELD):   
+                            self.OBJ_WELD[i].scale[0]=1
+                            self.OBJ_WELD[i].scale[1]=1
+                            self.OBJ_WELD[i].scale[2]=1
+                            self.array[i]=self.OBJ_WELD[i].modifiers["array"]
+                            self.array[i].count=self.old_count[i]
+                    self.phase=2
+                    self._initial_mouse = Vector((event.mouse_x, event.mouse_y, 0.0))
+                    bpy.ops.ed.undo_push()
+                    return {'RUNNING_MODAL'} 
+        except:
+            print(e)
+            bpy.context.Scene.shapemodified=False
+            bpy.context.scene.welddrawing=False                    
         return {'RUNNING_MODAL'}
     def invoke(self, context, event):        
         self._initial_mouse = Vector((event.mouse_x, event.mouse_y, 0.0))
