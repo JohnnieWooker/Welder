@@ -123,14 +123,20 @@ def add_driver(OBJ_WELD,array,number):
     target.data_path = "scale[0]"
     driver.expression = str(number)+"/size+1"
 
+def disablemodifiers(obj):
+    disabledatatransfer(obj)
+
+def enablemodifiers(obj):
+    enabledatatransfer(obj)
+
 def disabledatatransfer(obj):
     for m in obj.modifiers:
-        if m.type=='DATA_TRANSFER' or m.type=='SHRINKWRAP' or m.type=='VERTEX_WEIGHT_PROXIMITY':
-            m.show_viewport=False
+        if m.type=='DATA_TRANSFER' or m.type=='SHRINKWRAP' or m.type=='VERTEX_WEIGHT_PROXIMITY' or m.type=='SUBSURF':
+            m.show_viewport=False    
     
 def enabledatatransfer(obj):
     for m in obj.modifiers:
-        if m.type=='DATA_TRANSFER' or m.type=='SHRINKWRAP' or m.type=='VERTEX_WEIGHT_PROXIMITY':
+        if m.type=='DATA_TRANSFER' or m.type=='SHRINKWRAP' or m.type=='VERTEX_WEIGHT_PROXIMITY' or m.type=='SUBSURF':
             m.show_viewport=True
             if m.type=='VERTEX_WEIGHT_PROXIMITY':
                 m.max_dist=0.002*obj.scale[1]

@@ -12,7 +12,7 @@ lattice_error_thresh=0.0001
 
 class OBJECT_OT_WelderDrawOperator(bpy.types.Operator):
     bl_idname = "weld.draw"
-    bl_label = "Draw"    
+    bl_label = "Draw"
     
     def modal(self, context, event):
         try:
@@ -181,7 +181,7 @@ class OBJECT_OT_WeldTransformModal(bpy.types.Operator):
             elif event.type == 'LEFTMOUSE' and event.value in {'RELEASE'}:    
                 if (self.phase==2):
                     bpy.context.scene.welddrawing=False
-                    for i in range(len(self.OBJ_WELD)): utils.enabledatatransfer(self.OBJ_WELD[i])
+                    for i in range(len(self.OBJ_WELD)): utils.enablemodifiers(self.OBJ_WELD[i])
                     bpy.ops.ed.undo_push()
                     return {'FINISHED'}   
                 if (self.phase==1):
@@ -193,7 +193,7 @@ class OBJECT_OT_WeldTransformModal(bpy.types.Operator):
                     for i in range(len(self.OBJ_WELD)):
                         self.OBJ_WELD[i].rotation_euler[0]=0    
                     bpy.context.scene.welddrawing=False
-                    for i in range(len(self.OBJ_WELD)): utils.enabledatatransfer(self.OBJ_WELD[i])
+                    for i in range(len(self.OBJ_WELD)): utils.enablemodifiers(self.OBJ_WELD[i])
                     return {'CANCELLED'}
                 if (self.phase==1):
                     for i in range(len(self.OBJ_WELD)):
@@ -215,7 +215,7 @@ class OBJECT_OT_WeldTransformModal(bpy.types.Operator):
     def invoke(self, context, event):        
         self._initial_mouse = Vector((event.mouse_x, event.mouse_y, 0.0))
         self.OBJ_WELD=bpy.context.selected_objects
-        for i in range(len(self.OBJ_WELD)): utils.disabledatatransfer(self.OBJ_WELD[i])
+        for i in range(len(self.OBJ_WELD)): utils.disablemodifiers(self.OBJ_WELD[i])
         self.array=[m.modifiers["array"] for m in self.OBJ_WELD]
         self.old_count=[a.count for a in self.array]
         self.phase=1
@@ -548,7 +548,7 @@ class OBJECT_OT_ShapeModifyModal(bpy.types.Operator):
                         
         return {'PASS_THROUGH'}
     def cancel(self, context):
-        utils.enabledatatransfer(self.obj)
+        utils.enablemodifiers(self.obj)
         bpy.context.view_layer.objects.active=self.obj
         utils.destroyLattice(self)
         utils.removenode()
