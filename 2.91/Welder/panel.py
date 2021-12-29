@@ -2,6 +2,7 @@ import bpy
 from bpy.props import StringProperty, EnumProperty
 from bpy.types import AddonPreferences
 
+from . import parameters
 from . import utils
 
 def update_welder_category(self, context):
@@ -10,17 +11,17 @@ def update_welder_category(self, context):
         bpy.utils.unregister_class(PANEL_PT_WelderSubPanelDynamic)
     except:
         pass
-    PANEL_PT_WelderToolsPanel.bl_category = context.preferences.addons["Welder"].preferences.category
-    PANEL_PT_WelderSubPanelDynamic.bl_category = context.preferences.addons["Welder"].preferences.category
+    PANEL_PT_WelderToolsPanel.bl_category = context.preferences.addons[parameters.NAME].preferences.category
+    PANEL_PT_WelderSubPanelDynamic.bl_category = context.preferences.addons[parameters.NAME].preferences.category
     bpy.utils.register_class(PANEL_PT_WelderToolsPanel)
     bpy.utils.register_class(PANEL_PT_WelderSubPanelDynamic) 
 
 class PANEL_PT_WelderToolsPanel(bpy.types.Panel):
-    bl_label = "Welder"
+    bl_label = parameters.NAME
     bl_idname = "OBJECT_PT_Welder"
     bl_space_type = "VIEW_3D"
     bl_region_type = "UI"
-    bl_category = "Welder"
+    bl_category = parameters.NAME
  
     active=False 
     weld=None
@@ -85,7 +86,7 @@ class PANEL_PT_WelderSubPanelDynamic(bpy.types.Panel):
     bl_idname = "OBJECT_PT_Welder_dynamic"
     bl_space_type = "VIEW_3D"
     bl_region_type = "UI"
-    bl_category = "Welder"
+    bl_category = parameters.NAME
 
     
     @classmethod
@@ -109,13 +110,17 @@ class PANEL_PT_WelderSubPanelDynamic(bpy.types.Panel):
         row.operator("weld.optimize")     
 
 class WelderPreferences(bpy.types.AddonPreferences):
-    bl_idname = "Welder"
+    bl_idname = parameters.NAME
     prefs_tabs: EnumProperty(
     items=(('info', "Info", "Welder Info"),
            ('options', "Options", "Welder Options")),
     default='info')
     
-    category : StringProperty(description="Choose a name for the category of the panel",default="Welder", update=update_welder_category)
+    category : StringProperty(description="Choose a name for the category of the panel",default=parameters.NAME, update=update_welder_category)
+    performance : EnumProperty(
+    items=(('Fast', "Fast", "Fast"),
+           ('High', "High", "High")),
+    default='Fast')
 
     def draw(self, context):
         wm = context.window_manager
@@ -153,3 +158,6 @@ class WelderPreferences(bpy.types.AddonPreferences):
             row = box.row(align=True)
             row.label(text="Panel Category:")
             row.prop(self, "category", text="")
+            row = box.row(align=True)
+            row.label(text="Performance:")
+            row.prop(self, "performance", text="")    

@@ -15,13 +15,14 @@ import os
 import bpy.utils.previews
 
 from . import utils
+from . import parameters
 from . import operators
 from . import panel
 
 bl_info = {
     "name": "Welder",
     "author": "Łukasz Hoffmann",
-    "version": (1,2,6),
+    "version": (1,2,8),
     "location": "View 3D > Object Mode > Tool Shelf",
     "wiki_url": "https://gumroad.com/l/lQVzQ",
     "tracker_url": "https://blenderartists.org/t/welder/672478/1",
@@ -73,6 +74,7 @@ preview_collections["thumbnail_previews"] = pcoll
 bpy.types.Scene.my_thumbnails = bpy.props.EnumProperty(items=generate_previews()) 
              
 classes =(
+operators.OBJECT_OT_SimplifyCurve,
 operators.OBJECT_OT_WeldButton,
 operators.OBJECT_OT_WeldTransformModal,
 operators.OBJECT_OT_WelderDrawOperator,
@@ -99,6 +101,7 @@ def register():
     prefs = context.preferences.addons[__name__].preferences
     panel.update_welder_category(prefs, context)       
     bpy.types.Object.weld = bpy.props.PointerProperty(type=WelderSettings)
+    bpy.types.VIEW3D_MT_object.append(operators.menu_func)
 
 def unregister():
     for cls in classes:

@@ -13,6 +13,8 @@ from bpy_extras.view3d_utils import (
     region_2d_to_location_3d
 )
 
+from . import parameters
+
 debug=False
 curve_node_mapping = {}
 
@@ -127,6 +129,7 @@ def disablemodifiers(obj):
     disabledatatransfer(obj)
 
 def enablemodifiers(obj):
+    if (bpy.context.preferences.addons[parameters.NAME].preferences.performance=='Fast'): replaceProxyWeldWithFinal(obj)
     enabledatatransfer(obj)
 
 def disabledatatransfer(obj):
@@ -401,7 +404,7 @@ def vertsToPoints(newVerts, splineVerts):
         newPoints.append(1)
     return newPoints
 
-def SimplifyCurve(obj,error):
+def SimplifyCurve(obj,error,cyclic):
     bpy.ops.object.select_all(action='DESELECT')
     scene=bpy.context.scene
     splines = obj.data.splines.values()
@@ -427,7 +430,7 @@ def SimplifyCurve(obj,error):
     bpy.ops.curve.delete(type='VERT')
     bpy.ops.curve.select_all(action='SELECT')
     bpy.ops.curve.radius_set(radius=1)
-    if bpy.context.scene.cyclic: bpy.ops.curve.cyclic_toggle()
+    if cyclic: bpy.ops.curve.cyclic_toggle()
     bpy.ops.object.mode_set(mode = 'OBJECT')    
 
 def addprop(object, value):    
@@ -481,8 +484,9 @@ def ScanForSurfaces(curve):
                 if hit[0]:
                     break
             if not hit[4] in surfaces and not hit[4]==None:
-                if debug: print("Surface is:")
-                print(hit[4])
+                if debug: 
+                    print("Surface is:")
+                    print(hit[4])
                 surfaces.append(hit[4])    
         except Exception as e:
             print(e)
@@ -529,15 +533,61 @@ def AddBlending(obj,surfaces):
                 dtm.data_types_loops = {'CUSTOM_NORMAL'}
                 counter=counter+1
 
-def MakeWeldFromCurve(OBJ1,edge_length,obje,matrix,surfaces):
+def replaceProxyWeldWithFinal(obj):
     current_path = os.path.dirname(os.path.realpath(__file__))
-    blendfile = os.path.join(current_path, "weld.blend")  #ustawic wlasna sciezke!
+    blendfile = os.path.join(current_path, parameters.WELD_FILE)  #refactor!
+    section   = "\\Object\\"
+    object=obj['Weld']
+    if (parameters.PROXY_SUFFIX in object): object=object.replace(parameters.PROXY_SUFFIX,"")
+    filepath  = blendfile + section + object
+    directory = blendfile + section
+    filename  = object
+    bpy.ops.wm.append(
+        filepath=filepath, 
+        filename=filename,
+        directory=directory)  
+    vg_names=[]
+    for v in obj.vertex_groups:
+        vg_names.append(v.name)
+    OBJ_WELD=bpy.context.selected_objects[0]
+    obj.data=OBJ_WELD.data.copy()
+    mod_props = []
+    bpy.ops.object.select_all(action = 'DESELECT')
+    obj.select_set(True)  
+    bpy.context.view_layer.objects.active = obj
+    for mod in OBJ_WELD.modifiers:
+        obj.modifiers.new(name=mod.name,type=mod.type)
+        properties = []
+        for prop in mod.bl_rna.properties:
+            if not prop.is_readonly:
+                properties.append(prop.identifier)
+        mod_props.append([mod, properties])
+    for stuff in mod_props:
+        for m in obj.modifiers:
+            bpy.ops.object.modifier_move_up(modifier=stuff[0].name)
+        for prop in stuff[1]:
+            setattr(obj.modifiers[stuff[0].name], prop, getattr(stuff[0], prop))
+
+    remove_obj(OBJ_WELD.name)
+    obj.name=object
+    for v in vg_names:
+        vg=obj.vertex_groups.new(name=v)
+        verts = []
+        for vert in obj.data.vertices:
+            verts.append(vert.index)
+        vg.add(verts,1.0,'ADD')    
+    return
+
+def MakeWeldFromCurve(OBJ1,edge_length,obje,matrix,surfaces,proxy):
+    current_path = os.path.dirname(os.path.realpath(__file__))
+    blendfile = os.path.join(current_path, parameters.WELD_FILE)  #ustawic wlasna sciezke!
     section   = "\\Object\\"
     if (obje==''):
         object="Weld_1"
-        if bpy.context.scene.type=='Decal': object=object+'_decal'   
+        if bpy.context.scene.type=='Decal': object=object+parameters.DECAL_SUFFIX
     else:
         object=obje
+        if proxy and not bpy.context.scene.type=='Decal': object=object+parameters.PROXY_SUFFIX
 
     filepath  = blendfile + section + object
     directory = blendfile + section
@@ -568,7 +618,7 @@ def MakeWeldFromCurve(OBJ1,edge_length,obje,matrix,surfaces):
     if object=="Weld_3": 
         offset=0.1
         array.count=floor(count/2.3)-1
-    if object=="Weld_3_decal": 
+    if object=="Weld_3"+parameters.DECAL_SUFFIX: 
         offset=0.1
         array.count=floor(count/2.3)-1
     array.constant_offset_displace[0]=offset

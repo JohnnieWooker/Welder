@@ -6,9 +6,21 @@ import os
 from math import (floor,ceil)
 
 from . import utils
+from . import parameters
 
 simplify_error=0.001
 lattice_error_thresh=0.0001
+
+def menu_func(self, context):
+    self.layout.operator(OBJECT_OT_SimplifyCurve.bl_idname)
+
+class OBJECT_OT_SimplifyCurve(bpy.types.Operator):
+    bl_idname = "weld.simplify"   
+    bl_label = "Simplify Curve"
+    def execute(self, context):
+        selected=bpy.context.selected_objects
+        for s in selected: utils.SimplifyCurve(s,simplify_error,False)
+        return {'FINISHED'}
 
 class OBJECT_OT_WelderDrawOperator(bpy.types.Operator):
     bl_idname = "weld.draw"
@@ -90,10 +102,11 @@ class OBJECT_OT_WelderDrawOperator(bpy.types.Operator):
                 bpy.ops.object.mode_set(mode='OBJECT')            
                 curve=bpy.context.view_layer.objects.active
                 surfaces=utils.ScanForSurfaces(curve)
-                utils.SimplifyCurve(curve,simplify_error)
+                utils.SimplifyCurve(curve,simplify_error,bpy.context.scene.cyclic)
                 edge_length=utils.CalculateCurveLength(curve,bpy.context.scene.cyclic)
                 matrix=curve.matrix_world  
-                obj=utils.MakeWeldFromCurve(curve,edge_length,self.obje,matrix,surfaces)  
+                useproxy = True if context.preferences.addons[parameters.NAME].preferences.performance=='Fast' else False
+                obj=utils.MakeWeldFromCurve(curve,edge_length,self.obje,matrix,surfaces,useproxy)  
                 self.phase=1  
                 return bpy.ops.weld.translate('INVOKE_DEFAULT')
             
@@ -118,7 +131,7 @@ class OBJECT_OT_WelderDrawOperator(bpy.types.Operator):
         iconname=bpy.context.scene.my_thumbnails
         self.obje=utils.weldchose(iconname)
         if self.obje=='': return {'FINISHED'}
-        if bpy.context.scene.type=='Decal': self.obje=self.obje+'_decal'
+        if bpy.context.scene.type=='Decal': self.obje=self.obje+parameters.DECAL_SUFFIX
         self.lmb = False
         self.initiated=False
         if (bpy.context.object!=None):
@@ -207,7 +220,7 @@ class OBJECT_OT_WeldTransformModal(bpy.types.Operator):
                     self._initial_mouse = Vector((event.mouse_x, event.mouse_y, 0.0))
                     bpy.ops.ed.undo_push()
                     return {'RUNNING_MODAL'} 
-        except:
+        except Exception as e:
             print(e)
             bpy.context.Scene.shapemodified=False
             bpy.context.scene.welddrawing=False                    
@@ -243,7 +256,6 @@ class OBJECT_OT_WeldButton(bpy.types.Operator):
     bl_label = "Weld"   
  
     def execute(self, context):
-        print("test")
         preserve=True
         edit=False
         objectstodel=bpy.context.selected_objects
@@ -302,7 +314,7 @@ class OBJECT_OT_WeldButton(bpy.types.Operator):
             iconname=bpy.context.scene.my_thumbnails
             obje=utils.weldchose(iconname)
             if obje=='': return {'FINISHED'}   
-            if bpy.context.scene.type=='Decal': obje=obje+'_decal'   
+            if bpy.context.scene.type=='Decal': obje=obje+parameters.DECAL_SUFFIX
             welds=[] 
             for o in obj:   
                 if (o.type=='CURVE'):                    
@@ -314,7 +326,8 @@ class OBJECT_OT_WeldButton(bpy.types.Operator):
                     edge_length=utils.CalculateCurveLength(o,o.data.splines[0].use_cyclic_u)
                     matrix=o.matrix_world  
                     surfaces=utils.ScanForSurfaces(o)
-                    objweld=utils.MakeWeldFromCurve(o,edge_length,obje,matrix,surfaces)
+                    useproxy = True if context.preferences.addons[parameters.NAME].preferences.performance=='Fast' else False
+                    objweld=utils.MakeWeldFromCurve(o,edge_length,obje,matrix,surfaces,useproxy)
                     welds.append(objweld)
             for o in welds:   
                 o.select_set(True)                    
@@ -331,7 +344,7 @@ class OBJECT_OT_WeldButton(bpy.types.Operator):
             iconname=bpy.context.scene.my_thumbnails
             obje=utils.weldchose(iconname)
             if obje=='': return {'FINISHED'}
-            if bpy.context.scene.type=='Decal': obje=obje+'_decal'
+            if bpy.context.scene.type=='Decal': obje=obje+parameters.DECAL_SUFFIX
             def is_inside(p, obj):
                 max_dist = 1.84467e+19
                 found, point, normal, face = obj.closest_point_on_mesh(p, distance=max_dist)
@@ -441,15 +454,8 @@ class OBJECT_OT_WeldButton(bpy.types.Operator):
             
             bpy.ops.object.mode_set(mode = 'OBJECT')
 
+
             _data = bpy.context.active_object.data
-                
-            edge_length = 0
-            for edge in _data.edges:
-                vert0 = _data.vertices[edge.vertices[0]].co
-                vert1 = _data.vertices[edge.vertices[1]].co
-                edge_length += (vert0-vert1).length
-            
-            edge_length = '{:.6f}'.format(edge_length)
             
             guides=utils.separateloose(OBJ1)
             
@@ -460,8 +466,17 @@ class OBJECT_OT_WeldButton(bpy.types.Operator):
             bpy.ops.object.select_all()
             
             listofwelds=[]
-            
-            for g in guides: listofwelds.append(utils.MakeWeldFromCurve(g,edge_length,obje,matrix,surfaces))
+            edge_lengths=[]
+            for g in guides: 
+                edge_length=utils.CalculateCurveLength(g,g.data.splines[0].use_cyclic_u)
+                edge_lengths.append(edge_length)
+
+            c=0
+
+            for g in guides: 
+                useproxy = True if context.preferences.addons[parameters.NAME].preferences.performance=='Fast' else False
+                listofwelds.append(utils.MakeWeldFromCurve(g,edge_lengths[c],obje,matrix,surfaces,useproxy))
+                c=c+1
             
             for o in listofwelds: o.select_set(True)
         
@@ -497,7 +512,7 @@ class OBJECT_OT_OptimizeButton(bpy.types.Operator):
         rotation=OBJ_Source.rotation_euler
         scale=OBJ_Source.scale
         current_path = os.path.dirname(os.path.realpath(__file__))
-        blendfile = os.path.join(current_path, "weld.blend")  #ustawic wlasna sciezke!        
+        blendfile = os.path.join(current_path, parameters.WELD_FILE)  #ustawic wlasna sciezke!        
         section   = "\\Object\\"
         object="Weld_plain"
         filepath  = blendfile + section + object
