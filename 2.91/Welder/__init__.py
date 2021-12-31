@@ -22,7 +22,7 @@ from . import panel
 bl_info = {
     "name": "Welder",
     "author": "Łukasz Hoffmann",
-    "version": (1,2,8),
+    "version": (1,2,9),
     "location": "View 3D > Object Mode > Tool Shelf",
     "wiki_url": "https://gumroad.com/l/lQVzQ",
     "tracker_url": "https://blenderartists.org/t/welder/672478/1",
@@ -74,10 +74,12 @@ preview_collections["thumbnail_previews"] = pcoll
 bpy.types.Scene.my_thumbnails = bpy.props.EnumProperty(items=generate_previews()) 
              
 classes =(
+operators.OBJECT_OT_OnLoadCleanup,
 operators.OBJECT_OT_SimplifyCurve,
 operators.OBJECT_OT_WeldButton,
 operators.OBJECT_OT_WeldTransformModal,
 operators.OBJECT_OT_WelderDrawOperator,
+operators.OBJECT_OT_CollapseButton,
 operators.OBJECT_OT_ShapeModifyButton,
 operators.OBJECT_OT_ShapeModifyModal,
 operators.OBJECT_OT_OptimizeButton,
@@ -89,6 +91,7 @@ WelderSettings
 )
 bpy.types.Scene.cyclic=bpy.props.BoolProperty(name="cyclic", description="cyclic",default=True)
 bpy.types.Scene.surfaceblend=bpy.props.BoolProperty(name="Surface blend", description="Surface blend",default=False)
+bpy.types.Scene.collapsesubsurf=bpy.props.BoolProperty(name="Collapse subsurf", description="Collapse subsurf",default=False)
 bpy.types.Scene.type=bpy.props.EnumProperty(items=[
     ("Geometry", "Geometry", "Geometry", 0),
     ("Decal", "Decal", "Decal", 1),

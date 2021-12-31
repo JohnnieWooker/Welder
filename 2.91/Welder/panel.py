@@ -39,6 +39,7 @@ class PANEL_PT_WelderToolsPanel(bpy.types.Panel):
         return True        
  
     def draw(self, context):
+        
         if (self.active):
             try:
                 #row=self.layout.row()
@@ -47,6 +48,13 @@ class PANEL_PT_WelderToolsPanel(bpy.types.Panel):
                 #row.prop(self.weld.weld,"name")
                 row=self.layout.row()
                 row.prop(utils.getSpline(),"use_cyclic_u",text="cyclic")
+                collapsebox = self.layout.box()   
+                row = collapsebox.row(align=True)
+                row.label(text="Collapse")
+                row = collapsebox.row()
+                row.prop(context.scene, "collapsesubsurf")
+                row = collapsebox.row()
+                row.operator("weld.collapse")
                 #row.prop(self.weld.weld, "blend")
             except:
                 pass    

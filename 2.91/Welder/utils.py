@@ -293,7 +293,7 @@ def mesh_intersecting(obj1,obj2):
     for v in obj1.data.vertices:
         if is_point_inside(v.co,obj2):
             intersection=True
-            break;
+            break
     return intersection
 
 def absoluteselection(obj):
@@ -635,11 +635,110 @@ def MakeWeldFromCurve(OBJ1,edge_length,obje,matrix,surfaces,proxy):
     AddBlending(OBJ_WELD,surfaces)
     return(OBJ_WELD)  
     #bpy.ops.object.delete() 
-    
-def getSpline():
-    weld=bpy.context.view_layer.objects.active
-    for m in weld.modifiers:
+
+def collapse():
+    selected=bpy.context.selected_objects
+    oldactive=bpy.context.view_layer.objects.active
+    bpy.ops.object.select_all(action='DESELECT')
+    for o in selected:        
+        try:
+            intersectors=getIntersectors(o)        
+            oldcollections=getCollections(intersectors)
+            col=addToTemporaryCollection(parameters.INTERSECTION_COLLECTION_NAME,intersectors)
+            collapseCurveAndArray(o,bpy.context.scene.collapsesubsurf)
+            deselectVerts(o)   
+            booleanIntersectors(o,col)
+            removeSelectedFaces(o)
+            bpy.data.collections.remove(col)
+            o['Weld']=None
+        except Exception as e:
+            if (debug): print(e)
+            pass
+    bpy.context.view_layer.objects.active=oldactive
+    for o in selected: o.select_set(True)    
+    return {'FINISHED'}
+
+def removeSelectedFaces(o):
+    bpy.ops.object.select_all(action='DESELECT')
+    o.select_set(True)
+    bpy.ops.object.mode_set(mode='EDIT')
+    bpy.ops.mesh.delete(type='FACE')
+    bpy.ops.object.mode_set(mode='OBJECT')
+    bpy.ops.object.select_all(action='DESELECT')
+    return
+
+def booleanIntersectors(obj,col):
+    bpy.context.view_layer.objects.active=obj
+    obj.select_set(True)
+    boolMod = obj.modifiers.new(type="BOOLEAN", name="bool_intersection")
+    boolMod.operand_type = 'COLLECTION'
+    boolMod.collection=col
+    bpy.ops.object.modifier_apply(modifier=boolMod.name)    
+    bpy.ops.object.select_all(action='DESELECT')  
+    return
+
+def deselectVerts(o):
+    bpy.ops.object.select_all(action='DESELECT')
+    o.select_set(True)
+    bpy.ops.object.mode_set(mode='EDIT')
+    bpy.ops.mesh.select_all(action='DESELECT')
+    bpy.ops.object.mode_set(mode='OBJECT')
+    bpy.ops.object.select_all(action='DESELECT')
+    return
+
+def collapseCurveAndArray(obj,subAlso):
+    try:
+        bpy.context.view_layer.objects.active=obj
+        obj.select_set(True)
+        mods=[]
+        for m in obj.modifiers:
+            if m.type=='CURVE' or m.type=='ARRAY':
+                mods.append(m.name)
+            if subAlso and m.type=='SUBSURF':  
+                mods.append(m.name)  
+        for m in mods: bpy.ops.object.modifier_apply(modifier=m)            
+        bpy.ops.object.select_all(action='DESELECT')
+    except:
+        pass   
+    return
+
+def addToTemporaryCollection(collectionName,objects):
+    collection = bpy.data.collections.new(collectionName)     
+    bpy.context.scene.collection.children.link(collection) 
+    for o in objects:
+        collection.objects.link(o)
+    return collection
+
+def getCollections(objects):
+    collections=[]
+    for o in objects:
+        collections.append(o.users_collection)
+    return collections    
+
+def getIntersectors(obj):
+    intersectors=[]
+    for m in obj.modifiers:
+        if m.type=='DATA_TRANSFER':
+            if (m.object not in intersectors): intersectors.append(m.object)
+        if m.type=='SHRINKWRAP':
+            if (m.target not in intersectors): intersectors.append(m.target)
+        if m.type=='VERTEX_WEIGHT_PROXIMITY':
+            if (m.target not in intersectors): intersectors.append(m.target)
+    if len(intersectors)<=0:
+        curve=getCurve(obj)
+        if not curve==None: 
+            surfaces=ScanForSurfaces(curve)
+            for s in surfaces: intersectors.append(s)     
+    return intersectors
+
+def getCurve(obj):
+    for m in obj.modifiers:
         if m.type=="CURVE":
-            curve=m.object
-            return curve.data.splines[0]
+            return m.object
     return None        
+
+def getSpline():
+    curve=getCurve(bpy.context.view_layer.objects.active)
+    if not curve==None:
+        return curve.data.splines[0]
+    return None           

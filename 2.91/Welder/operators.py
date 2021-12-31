@@ -4,6 +4,7 @@ import bmesh
 from mathutils import Vector
 import os
 from math import (floor,ceil)
+from bpy.app.handlers import persistent
 
 from . import utils
 from . import parameters
@@ -637,3 +638,26 @@ class OBJECT_OT_ShapeModifyModal(bpy.types.Operator):
         self._timer = wm.event_timer_add(0.1, window=context.window)
         wm.modal_handler_add(self)
         return {'RUNNING_MODAL'}    
+
+class OBJECT_OT_OnLoadCleanup(bpy.types.Operator):
+    bl_idname = "weld.onloadcleanup"
+    bl_label = "Welder on load cleanup"
+    def invoke(self, context,event):
+        bpy.context.scene.welddrawing=False
+        return {'FINISHED'}   
+    def execute(self, context):    
+        bpy.context.scene.welddrawing=False
+        return {'FINISHED'}   
+
+class OBJECT_OT_CollapseButton(bpy.types.Operator):
+    bl_idname = "weld.collapse"   
+    bl_label = "Collapse"
+    def execute(self, context):        
+        utils.collapse()
+        return{'FINISHED'}
+
+@persistent
+def load_handler(dummy):
+    bpy.ops.weld.onloadcleanup('INVOKE_DEFAULT')
+
+bpy.app.handlers.load_post.append(load_handler)     
