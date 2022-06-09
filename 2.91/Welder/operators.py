@@ -45,7 +45,7 @@ class OBJECT_OT_WelderDrawOperator(bpy.types.Operator):
                 #self.lmb = event.value == 'PRESS'
             
             elif event.type == 'MOUSEMOVE' and self.phase==0:                
-                if event.value == 'PRESS' and self.lmb:
+                if self.lmb:
                     if utils.get_mouse_3d_on_mesh(self,event,context) is not None:
                         ishit,hit=utils.get_mouse_3d_on_mesh(self,event,context)
                         if (ishit): 
@@ -119,7 +119,7 @@ class OBJECT_OT_WelderDrawOperator(bpy.types.Operator):
             
         except Exception as e:    
             print(e)
-            bpy.context.Scene.shapemodified=False
+            bpy.context.scene.shapemodified=False
             bpy.context.scene.welddrawing=False
             
         return {'PASS_THROUGH'}
@@ -223,7 +223,7 @@ class OBJECT_OT_WeldTransformModal(bpy.types.Operator):
                     return {'RUNNING_MODAL'} 
         except Exception as e:
             print(e)
-            bpy.context.Scene.shapemodified=False
+            bpy.context.scene.shapemodified=False
             bpy.context.scene.welddrawing=False                    
         return {'RUNNING_MODAL'}
     def invoke(self, context, event):        

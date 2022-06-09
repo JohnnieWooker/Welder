@@ -45,25 +45,11 @@ def switchkeymap(state):
     for km in listz: km.active = state
 
 def draw_callback_px(self, context):
-
     shader = gpu.shader.from_builtin('3D_UNIFORM_COLOR')
-    bgl.glEnable(bgl.GL_BLEND)
-    bgl.glEnable(bgl.GL_LINE_SMOOTH)
-    bgl.glLineWidth(3)
-
     batch = batch_for_shader(shader, 'LINE_STRIP', {"pos": self.mouse_path})
     shader.bind()
     shader.uniform_float("color", (0.0, 0.0, 0.0, 0.5))
     batch.draw(shader)
-
-    """
-    for x,y,z in self.mouse_path:        
-        bgl.glVertex3f(x, y,z)
-    bgl.glEnd()
-    """
-    # restore opengl defaults
-    bgl.glLineWidth(1)
-    bgl.glDisable(bgl.GL_BLEND)
   
 def get_origin_and_direction(self,event,context):
     region=context.region
@@ -627,14 +613,13 @@ def MakeWeldFromCurve(OBJ1,edge_length,obje,matrix,surfaces,proxy):
     #OBJ1.data.resolution_u=int(count/2)
     bpy.data.objects[OBJ_WELD.name].select_set(True)
     bpy.context.view_layer.objects.active = OBJ1
-    bpy.ops.object.modifier_apply(modifier='array')
+    #bpy.ops.object.modifier_apply(modifier='array')
     #bpy.ops.object.modifier_apply(modifier='curve')
     bpy.ops.object.select_all(action = 'DESELECT')
     OBJ_WELD.select_set(True)  
     bpy.context.view_layer.objects.active = OBJ_WELD
     AddBlending(OBJ_WELD,surfaces)
     return(OBJ_WELD)  
-    #bpy.ops.object.delete() 
 
 def collapse():
     selected=bpy.context.selected_objects
