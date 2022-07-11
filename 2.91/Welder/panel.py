@@ -127,7 +127,7 @@ class WelderPreferences(bpy.types.AddonPreferences):
     category : StringProperty(description="Choose a name for the category of the panel",default=parameters.NAME, update=update_welder_category)
     performance : EnumProperty(
     items=(('Fast', "Fast", "Fast"),
-           ('High', "High", "High")),
+           ('High quality', "High quality", "High quality")),
     default='Fast')
 
     def draw(self, context):

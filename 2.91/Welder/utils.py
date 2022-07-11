@@ -658,6 +658,7 @@ def booleanIntersectors(obj,col):
     boolMod = obj.modifiers.new(type="BOOLEAN", name="bool_intersection")
     boolMod.operand_type = 'COLLECTION'
     boolMod.collection=col
+    boolMod.use_hole_tolerant=True
     bpy.ops.object.modifier_apply(modifier=boolMod.name)    
     bpy.ops.object.select_all(action='DESELECT')  
     return
