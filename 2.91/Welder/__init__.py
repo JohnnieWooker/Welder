@@ -22,11 +22,11 @@ from . import panel
 bl_info = {
     "name": "Welder",
     "author": "Łukasz Hoffmann",
-    "version": (1,2,9),
+    "version": (1,3,0),
     "location": "View 3D > Object Mode > Tool Shelf",
     "wiki_url": "https://gumroad.com/l/lQVzQ",
     "tracker_url": "https://blenderartists.org/t/welder/672478/1",
-    "blender": (2, 91, 0),
+    "blender": (3, 2, 0),
     "description": "Generate weld along the edge of intersection of two objects",
     "warning": "",
     "category": "Object",
