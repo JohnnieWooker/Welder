@@ -132,7 +132,7 @@ def enabledatatransfer(obj):
         if m.type=='CURVE' and obj.scale[1]<1:
             curve=m.object
             if (not curve==None):
-                curve.data.resolution_u=1/obj.scale[2]*3
+                curve.data.resolution_u=int(1/obj.scale[2]*3)
 
 def cleanupWeld(obj):
     if (obj.data.shape_keys!=None):
@@ -658,6 +658,7 @@ def booleanIntersectors(obj,col):
     boolMod = obj.modifiers.new(type="BOOLEAN", name="bool_intersection")
     boolMod.operand_type = 'COLLECTION'
     boolMod.collection=col
+    boolMod.use_hole_tolerant=True
     bpy.ops.object.modifier_apply(modifier=boolMod.name)    
     bpy.ops.object.select_all(action='DESELECT')  
     return
