@@ -293,7 +293,7 @@ def absoluteselection(obj):
     selected_old=len(selected_old_indices)
     if selected_old==0: return False
     bpy.ops.mesh.select_more()
-    selected_new=len([v.index for v in bm.verts if v.select])
+    selected_new=len([v.index for v in bm.verts if v.select])    
     if selected_new==selected_old:
         bpy.ops.mesh.duplicate()
         bpy.ops.mesh.separate(type='SELECTED')        
@@ -320,16 +320,19 @@ def absoluteselection(obj):
         obj_new.select_set(True)
         bpy.context.view_layer.objects.active=obj_new
         bpy.ops.object.delete()
-    for f in bm.faces:
-        if f.index in selected_old_faces: f.select=True
-        else: f.select=False
-    for f in bm.edges:
-        if f.index in selected_old_edges: f.select=True
-        else: f.select=False
-    for v in bm.verts:
-        if v.index in selected_old_indices: 
-            v.select=True
-        else: v.select=False           
+    try:
+        for f in bm.faces:
+            if f.index in selected_old_faces: f.select=True
+            else: f.select=False
+        for f in bm.edges:
+            if f.index in selected_old_edges: f.select=True
+            else: f.select=False
+        for v in bm.verts:
+            if v.index in selected_old_indices: 
+                v.select=True
+            else: v.select=False      
+    except:
+        return True, None, None            
     return False    
 
 def iscontinuable(obj):

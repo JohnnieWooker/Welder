@@ -292,12 +292,15 @@ class OBJECT_OT_WeldButton(bpy.types.Operator):
                             bpy.ops.object.delete()
                             bpy.context.view_layer.objects.active=originobj
                             bpy.ops.object.mode_set(mode='EDIT')
-                            self.report({'ERROR'}, 'Detected wrong selectiong or not an edgeloop, aborting')
+                            self.report({'ERROR'}, 'Detected incorrect selection or not an edgeloop, aborting')
                             return {'FINISHED'}   
-                           
-        if (bpy.context.object.mode!='OBJECT'):
-            self.report({'ERROR'}, 'Welding works only in edit or object mode')
-            return {'FINISHED'}
+        try:
+            if (bpy.context.object.mode!='OBJECT'):
+                self.report({'ERROR'}, 'Welding works only in edit or object mode')
+                return {'FINISHED'}
+        except:
+            self.report({'ERROR'}, 'Incorrect selection')
+            return {'FINISHED'}        
         curves=0
         for o in bpy.context.selected_objects:
             if (o.type=='CURVE'): curves=curves+1
@@ -469,9 +472,15 @@ class OBJECT_OT_WeldButton(bpy.types.Operator):
             listofwelds=[]
             edge_lengths=[]
             for g in guides: 
-                edge_length=utils.CalculateCurveLength(g,g.data.splines[0].use_cyclic_u)
-                edge_lengths.append(edge_length)
-
+                if (g.type=='CURVE'):
+                    edge_length=utils.CalculateCurveLength(g,g.data.splines[0].use_cyclic_u)
+                    edge_lengths.append(edge_length)
+                else:    
+                    if (len(guides)<=1): 
+                        self.report({'ERROR'}, 'Cant find intersection or proper edges selection')
+                        return {'FINISHED'}
+                    else:
+                        guides.remove(g)
             c=0
 
             for g in guides: 
