@@ -26,6 +26,7 @@ class OBJECT_OT_SimplifyCurve(bpy.types.Operator):
 class OBJECT_OT_WelderDrawOperator(bpy.types.Operator):
     bl_idname = "weld.draw"
     bl_label = "Draw"
+    bl_options = {'REGISTER', "UNDO"}
     
     def modal(self, context, event):
         try:
@@ -255,6 +256,7 @@ class OBJECT_OT_WeldButton(bpy.types.Operator):
     bl_idname = "weld.weld"    
     #obje : bpy.props.StringProperty()   
     bl_label = "Weld"   
+    bl_options = {'REGISTER', "UNDO"}
  
     def execute(self, context):
         preserve=True
@@ -269,31 +271,35 @@ class OBJECT_OT_WeldButton(bpy.types.Operator):
                 bpy.ops.object.mode_set(mode = 'OBJECT')
             else:
                 if bpy.context.view_layer.objects.active.type=='MESH':
-                    if utils.absoluteselection(bpy.context.view_layer.objects.active):                         
-                        preserve=False
-                        objectstodel=bpy.context.selected_objects
-                    else: 
-                        if (not utils.isanythingselected(bpy.context.view_layer.objects.active)):
-                            self.report({'ERROR'}, 'Nothing selected, aborting')
-                            return {'FINISHED'}    
-                        bpy.ops.mesh.duplicate()
-                        bpy.ops.mesh.separate(type='SELECTED')
-                        bpy.ops.object.mode_set(mode='OBJECT')
-                        originobj=bpy.context.view_layer.objects.active
-                        obj=bpy.context.selected_objects[0]
-                        for o in bpy.context.selected_objects:
-                            if o!=originobj: obj=o
-                        bpy.context.view_layer.objects.active = obj
-                        originobj.select_set(False)
-                        bpy.ops.object.mode_set(mode='EDIT')
-                        bpy.ops.mesh.separate(type='LOOSE')
-                        bpy.ops.object.mode_set(mode='OBJECT')
-                        if (obj.type=='MESH' and (len(obj.data.polygons)>0 or not utils.iscontinuable(obj))):
-                            bpy.ops.object.delete()
-                            bpy.context.view_layer.objects.active=originobj
+                    try:                        
+                        if utils.absoluteselection(bpy.context.view_layer.objects.active):                         
+                            preserve=False
+                            objectstodel=bpy.context.selected_objects
+                        else: 
+                            if (not utils.isanythingselected(bpy.context.view_layer.objects.active)):
+                                self.report({'ERROR'}, 'Nothing selected, aborting')
+                                return {'FINISHED'}    
+                            bpy.ops.mesh.duplicate()
+                            bpy.ops.mesh.separate(type='SELECTED')
+                            bpy.ops.object.mode_set(mode='OBJECT')
+                            originobj=bpy.context.view_layer.objects.active
+                            obj=bpy.context.selected_objects[0]
+                            for o in bpy.context.selected_objects:
+                                if o!=originobj: obj=o
+                            bpy.context.view_layer.objects.active = obj
+                            originobj.select_set(False)
                             bpy.ops.object.mode_set(mode='EDIT')
-                            self.report({'ERROR'}, 'Detected incorrect selection or not an edgeloop, aborting')
-                            return {'FINISHED'}   
+                            bpy.ops.mesh.separate(type='LOOSE')
+                            bpy.ops.object.mode_set(mode='OBJECT')
+                            if (obj.type=='MESH' and (len(obj.data.polygons)>0 or not utils.iscontinuable(obj))):
+                                bpy.ops.object.delete()
+                                bpy.context.view_layer.objects.active=originobj
+                                bpy.ops.object.mode_set(mode='EDIT')
+                                self.report({'ERROR'}, 'Detected incorrect selection or not an edgeloop, aborting')
+                                return {'FINISHED'}  
+                    except:
+                        self.report({'ERROR'}, 'Detected incorrect selection or not an edgeloop, aborting')
+                        return {'FINISHED'}           
         try:
             if (bpy.context.object.mode!='OBJECT'):
                 self.report({'ERROR'}, 'Welding works only in edit or object mode')
@@ -304,6 +310,10 @@ class OBJECT_OT_WeldButton(bpy.types.Operator):
         curves=0
         for o in bpy.context.selected_objects:
             if (o.type=='CURVE'): curves=curves+1
+        if (curves==0):  
+            #bpy.ops.ed.undo()         
+            self.report({'ERROR'}, 'Incorrect selection')    
+            return {'FINISHED'}        
         if len(bpy.context.selected_objects)==curves: edit=True
         if (len(bpy.context.selected_objects)>0 and edit):
             obj=bpy.context.selected_objects
