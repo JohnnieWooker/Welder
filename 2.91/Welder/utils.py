@@ -422,6 +422,27 @@ def SimplifyCurve(obj,error,cyclic):
 def addprop(object, value):    
     object["Weld"]=value
 
+def SplitCurves(obj):
+    bpy.ops.object.mode_set(mode='OBJECT')  
+    bpy.ops.object.select_all(action = 'DESELECT')    
+    for o in obj:
+        o.select_set(True)
+    obj=bpy.context.selected_objects
+    for o in obj:
+        if (o.type=='CURVE'):
+            bpy.context.view_layer.objects.active = o
+            bpy.ops.object.mode_set(mode='EDIT')
+            bpy.ops.curve.select_all(action='DESELECT')
+            for i in range(1,len(o.data.splines)):
+                spline=o.data.splines[len(o.data.splines)-1]
+                for point in spline.bezier_points:
+                    point.select_control_point=True
+                for point in spline.points:
+                    point.select=True
+                bpy.ops.curve.separate()
+            bpy.ops.object.mode_set(mode='OBJECT')  
+    return bpy.context.selected_objects           
+
 def CalculateCurveLength(curve,cyclic):
     bpy.ops.object.select_all(action='DESELECT')
     bpy.context.view_layer.objects.active = curve
@@ -431,15 +452,17 @@ def CalculateCurveLength(curve,cyclic):
     bpy.ops.object.convert(target='CURVE')
     curve=bpy.context.view_layer.objects.active
     matrix=curve.matrix_world
-    edge_length = 0
-    counter=0
+    edge_length = 0  
+    pointcount=0
     for s in curve.data.splines:
-        pointcount=len(s.points)
+        counter=0        
+        pointcount+=len(s.points)
         for point in s.points:
             if counter>0:
-                p0=s.points[counter-1].co
-                p1=s.points[counter].co
-                edge_length += (p0-p1).length
+                if (len(s.points)>counter):
+                    p0=s.points[counter-1].co
+                    p1=s.points[counter].co
+                    edge_length += (p0-p1).length
             counter=counter+1
         if cyclic:
             p0=s.points[pointcount-1].co

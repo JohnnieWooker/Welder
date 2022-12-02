@@ -330,6 +330,7 @@ class OBJECT_OT_WeldButton(bpy.types.Operator):
             if obje=='': return {'FINISHED'}   
             if bpy.context.scene.type=='Decal': obje=obje+parameters.DECAL_SUFFIX
             welds=[] 
+            obj=utils.SplitCurves(obj)
             for o in obj:   
                 if (o.type=='CURVE'):                    
                     bpy.context.view_layer.objects.active = o
@@ -337,6 +338,7 @@ class OBJECT_OT_WeldButton(bpy.types.Operator):
                     bpy.ops.curve.select_all(action='SELECT')
                     bpy.ops.curve.radius_set(radius=1)
                     bpy.ops.object.mode_set(mode='OBJECT')            
+
                     edge_length=utils.CalculateCurveLength(o,o.data.splines[0].use_cyclic_u)
                     matrix=o.matrix_world  
                     surfaces=utils.ScanForSurfaces(o)
