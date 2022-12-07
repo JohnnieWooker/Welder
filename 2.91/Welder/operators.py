@@ -310,10 +310,10 @@ class OBJECT_OT_WeldButton(bpy.types.Operator):
         curves=0
         for o in bpy.context.selected_objects:
             if (o.type=='CURVE'): curves=curves+1
-        if (curves==0):  
+        """if (curves==0):  
             #bpy.ops.ed.undo()         
             self.report({'ERROR'}, 'Incorrect selection')    
-            return {'FINISHED'}        
+            return {'FINISHED'}       """ 
         if len(bpy.context.selected_objects)==curves: edit=True
         if (len(bpy.context.selected_objects)>0 and edit):
             obj=bpy.context.selected_objects
