@@ -590,7 +590,7 @@ def replaceProxyWeldWithFinal(obj):
 def MakeWeldFromCurve(OBJ1,edge_length,obje,matrix,surfaces,proxy):
     current_path = os.path.dirname(os.path.realpath(__file__))
     blendfile = os.path.join(current_path, parameters.WELD_FILE)  #ustawic wlasna sciezke!
-    section   = "\\Object\\"
+    section   = "/Object/"
     if (obje==''):
         object="Weld_1"
         if bpy.context.scene.type=='Decal': object=object+parameters.DECAL_SUFFIX
