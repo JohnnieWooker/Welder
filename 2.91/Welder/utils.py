@@ -545,7 +545,7 @@ def AddBlending(obj,surfaces):
 def replaceProxyWeldWithFinal(obj):
     current_path = os.path.dirname(os.path.realpath(__file__))
     blendfile = os.path.join(current_path, parameters.WELD_FILE)  #refactor!
-    section   = "\\Object\\"
+    section   = "/Object/"
     object=obj['Weld']
     if (parameters.PROXY_SUFFIX in object): object=object.replace(parameters.PROXY_SUFFIX,"")
     filepath  = blendfile + section + object
