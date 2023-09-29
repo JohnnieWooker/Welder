@@ -380,10 +380,10 @@ class OBJECT_OT_WeldButton(bpy.types.Operator):
             OBJ3=bpy.context.selected_objects[0]
             OBJ4=bpy.context.selected_objects[1]
             bool_two = OBJ1.modifiers.new(type="BOOLEAN", name="bool 2")
-            bool_two.use_self=True
+            if hasattr(bool_two, "use_self"): bool_two.use_self=True
             bool_two.object = OBJ2
             bool_two.operation = 'INTERSECT'
-            bool_two.solver='FAST'
+            if hasattr(bool_two, "solver"): bool_two.solver='FAST'
             bpy.context.view_layer.objects.active = OBJ1
             bpy.ops.object.modifier_apply (modifier='bool 2')
             bpy.ops.object.select_all(action = 'DESELECT')
