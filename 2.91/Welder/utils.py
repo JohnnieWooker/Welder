@@ -45,7 +45,7 @@ def switchkeymap(state):
     for km in listz: km.active = state
 
 def draw_callback_px(self, context):
-    shader = gpu.shader.from_builtin('3D_UNIFORM_COLOR')
+    shader = gpu.shader.from_builtin('UNIFORM_COLOR')
     batch = batch_for_shader(shader, 'LINE_STRIP', {"pos": self.mouse_path})
     shader.bind()
     shader.uniform_float("color", (0.0, 0.0, 0.0, 0.5))
