@@ -383,7 +383,7 @@ class OBJECT_OT_WeldButton(bpy.types.Operator):
             if hasattr(bool_two, "use_self"): bool_two.use_self=True
             bool_two.object = OBJ2
             bool_two.operation = 'INTERSECT'
-            if hasattr(bool_two, "solver"): bool_two.solver='FAST'
+            if hasattr(bool_two, "solver"): bool_two.solver=context.preferences.addons[parameters.NAME].preferences.solver
             bpy.context.view_layer.objects.active = OBJ1
             bpy.ops.object.modifier_apply (modifier='bool 2')
             bpy.ops.object.select_all(action = 'DESELECT')
@@ -483,17 +483,18 @@ class OBJECT_OT_WeldButton(bpy.types.Operator):
             
             listofwelds=[]
             edge_lengths=[]
-            for g in guides: 
-                if (g.type=='CURVE'):
-                    edge_length=utils.CalculateCurveLength(g,g.data.splines[0].use_cyclic_u)
-                    edge_lengths.append(edge_length)
-                else:    
+            for g in guides:
+                if (g.type!='CURVE'):
                     if (len(guides)<=1): 
                         self.report({'ERROR'}, 'Cant find intersection or proper edges selection')
                         return {'FINISHED'}
                     else:
                         guides.remove(g)
             c=0
+
+            for g in guides:
+                edge_length=utils.CalculateCurveLength(g,g.data.splines[0].use_cyclic_u)
+                edge_lengths.append(edge_length)
 
             for g in guides: 
                 useproxy = True if context.preferences.addons[parameters.NAME].preferences.performance=='Fast' else False

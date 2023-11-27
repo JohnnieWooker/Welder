@@ -450,25 +450,25 @@ def CalculateCurveLength(curve,cyclic):
     bpy.ops.object.duplicate()
     bpy.ops.object.convert(target='MESH')
     bpy.ops.object.convert(target='CURVE')
-    curve=bpy.context.view_layer.objects.active
+    curve=bpy.context.view_layer.objects.active 
     matrix=curve.matrix_world
     edge_length = 0  
     pointcount=0
     for s in curve.data.splines:
         counter=0        
-        pointcount+=len(s.points)
-        for point in s.points:
-            if counter>0:
-                if (len(s.points)>counter):
-                    p0=s.points[counter-1].co
-                    p1=s.points[counter].co
-                    edge_length += (p0-p1).length
-            counter=counter+1
-        if cyclic:
-            p0=s.points[pointcount-1].co
-            p1=s.points[0].co
-            edge_length += (p0-p1).length      
-         
+        pointcount=len(s.points)
+        if (pointcount>1):
+            for point in s.points:
+                if counter>0:
+                    if (len(s.points)>counter):
+                        p0=s.points[counter-1].co
+                        p1=s.points[counter].co
+                        edge_length += (p0-p1).length
+                counter=counter+1
+            if cyclic:
+                p0=s.points[pointcount-1].co
+                p1=s.points[0].co
+                edge_length += (p0-p1).length  
     edge_length = '{:.6f}'.format(edge_length)  
     bpy.ops.object.delete()        
     return(edge_length)

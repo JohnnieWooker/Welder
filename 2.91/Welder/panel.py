@@ -129,6 +129,10 @@ class WelderPreferences(bpy.types.AddonPreferences):
     items=(('Fast', "Fast", "Fast"),
            ('High quality', "High quality", "High quality")),
     default='Fast')
+    solver: EnumProperty(
+    items=(('FAST', "FAST", "FAST"),
+           ('EXACT', "EXACT", "EXACT")),
+    default='FAST')
 
     def draw(self, context):
         wm = context.window_manager
@@ -168,4 +172,7 @@ class WelderPreferences(bpy.types.AddonPreferences):
             row.prop(self, "category", text="")
             row = box.row(align=True)
             row.label(text="Performance:")
-            row.prop(self, "performance", text="")    
+            row.prop(self, "performance", text="")   
+            row = box.row(align=True) 
+            row.label(text="Intersection solver:")
+            row.prop(self, "solver", text="")    
