@@ -508,8 +508,8 @@ def AddBlending(obj,surfaces):
             if debug: print(obj.name)
             vgs=[]
             counter=0
-            obj.data.use_auto_smooth = True
-            obj.data.auto_smooth_angle = 3.14159
+            if hasattr(obj.data, 'use_auto_smooth'): obj.data.use_auto_smooth = True
+            if hasattr(obj.data, 'auto_smooth_angle'): obj.data.auto_smooth_angle = 3.14159            
             for s in surfaces:
                 vg=obj.vertex_groups.new(name=s.name)
                 verts = []
