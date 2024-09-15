@@ -1,5 +1,5 @@
 '''
-Copyright (C) 2016-2021 Łukasz Hoffmann
+Copyright (C) 2016-2024 Łukasz Hoffmann
 johnniewooker@gmail.com
 
     This program is free software: you can redistribute it and/or modify
@@ -22,7 +22,7 @@ from . import panel
 bl_info = {
     "name": "Welder",
     "author": "Łukasz Hoffmann",
-    "version": (1,4,1),
+    "version": (1,4,2),
     "location": "View 3D > Object Mode > Tool Shelf",
     "wiki_url": "https://gumroad.com/l/lQVzQ",
     "tracker_url": "https://blenderartists.org/t/welder/672478/1",
@@ -99,10 +99,14 @@ bpy.types.Scene.type=bpy.props.EnumProperty(items=[
 
 def register():
     for cls in classes:
-        bpy.utils.register_class(cls)
+        try:
+            bpy.utils.register_class(cls)
+        except Exception as e:
+            print(e)
+            pass  
     context = bpy.context
-    prefs = context.preferences.addons[__name__].preferences
-    panel.update_welder_category(prefs, context)       
+    prefs = context.preferences.addons[__package__].preferences
+    panel.update_welder_category(prefs, context)         
     bpy.types.Object.weld = bpy.props.PointerProperty(type=WelderSettings)
     bpy.types.VIEW3D_MT_object.append(operators.menu_func)
 

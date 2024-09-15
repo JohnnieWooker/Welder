@@ -115,7 +115,7 @@ def disablemodifiers(obj):
     disabledatatransfer(obj)
 
 def enablemodifiers(obj):
-    if (bpy.context.preferences.addons[parameters.NAME].preferences.performance=='Fast'): replaceProxyWeldWithFinal(obj)
+    if (bpy.context.preferences.addons[__package__].preferences.performance=='Fast'): replaceProxyWeldWithFinal(obj)
     enabledatatransfer(obj)
 
 def disabledatatransfer(obj):

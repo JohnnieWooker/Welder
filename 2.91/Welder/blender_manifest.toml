@@ -1,0 +1,25 @@
+schema_version = "1.0.0"
+
+id = "Welder"
+version = "1.4.2"
+name = "Welder"
+tagline = "Tool for generating welds"
+maintainer = "Łukasz Hoffmann"
+type = "add-on"
+
+website = "https://blenderartists.org/t/welder/672478/1"
+
+tags = ["Modeling"]
+
+blender_version_min = "4.2.0"
+# blender_version_max = "5.1.0"
+
+license = [
+  "SPDX:GPL-3.0-or-later",
+]
+
+copyright = [
+   "2016-2024 Łukasz Hoffmann"
+ ]
+
+platforms = ["windows-x64", "macos-arm64", "linux-x64"]

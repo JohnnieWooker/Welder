@@ -107,7 +107,7 @@ class OBJECT_OT_WelderDrawOperator(bpy.types.Operator):
                 utils.SimplifyCurve(curve,simplify_error,bpy.context.scene.cyclic)
                 edge_length=utils.CalculateCurveLength(curve,bpy.context.scene.cyclic)
                 matrix=curve.matrix_world  
-                useproxy = True if context.preferences.addons[parameters.NAME].preferences.performance=='Fast' else False
+                useproxy = True if context.preferences.addons[__package__].preferences.performance=='Fast' else False
                 obj=utils.MakeWeldFromCurve(curve,edge_length,self.obje,matrix,surfaces,useproxy)  
                 self.phase=1  
                 return bpy.ops.weld.translate('INVOKE_DEFAULT')
@@ -342,7 +342,7 @@ class OBJECT_OT_WeldButton(bpy.types.Operator):
                     edge_length=utils.CalculateCurveLength(o,o.data.splines[0].use_cyclic_u)
                     matrix=o.matrix_world  
                     surfaces=utils.ScanForSurfaces(o)
-                    useproxy = True if context.preferences.addons[parameters.NAME].preferences.performance=='Fast' else False
+                    useproxy = True if context.preferences.addons[__package__].preferences.performance=='Fast' else False
                     objweld=utils.MakeWeldFromCurve(o,edge_length,obje,matrix,surfaces,useproxy)
                     welds.append(objweld)
             for o in welds:   
@@ -383,7 +383,7 @@ class OBJECT_OT_WeldButton(bpy.types.Operator):
             if hasattr(bool_two, "use_self"): bool_two.use_self=True
             bool_two.object = OBJ2
             bool_two.operation = 'INTERSECT'
-            if hasattr(bool_two, "solver"): bool_two.solver=context.preferences.addons[parameters.NAME].preferences.solver
+            if hasattr(bool_two, "solver"): bool_two.solver=context.preferences.addons[__package__].preferences.solver
             bpy.context.view_layer.objects.active = OBJ1
             bpy.ops.object.modifier_apply (modifier='bool 2')
             bpy.ops.object.select_all(action = 'DESELECT')
@@ -497,7 +497,7 @@ class OBJECT_OT_WeldButton(bpy.types.Operator):
                 edge_lengths.append(edge_length)
 
             for g in guides: 
-                useproxy = True if context.preferences.addons[parameters.NAME].preferences.performance=='Fast' else False
+                useproxy = True if context.preferences.addons[__package__].preferences.performance=='Fast' else False
                 listofwelds.append(utils.MakeWeldFromCurve(g,edge_lengths[c],obje,matrix,surfaces,useproxy))
                 c=c+1
             

@@ -11,8 +11,8 @@ def update_welder_category(self, context):
         bpy.utils.unregister_class(PANEL_PT_WelderSubPanelDynamic)
     except:
         pass
-    PANEL_PT_WelderToolsPanel.bl_category = context.preferences.addons[parameters.NAME].preferences.category
-    PANEL_PT_WelderSubPanelDynamic.bl_category = context.preferences.addons[parameters.NAME].preferences.category
+    PANEL_PT_WelderToolsPanel.bl_category = context.preferences.addons[__package__].preferences.category
+    PANEL_PT_WelderSubPanelDynamic.bl_category = context.preferences.addons[__package__].preferences.category
     bpy.utils.register_class(PANEL_PT_WelderToolsPanel)
     bpy.utils.register_class(PANEL_PT_WelderSubPanelDynamic) 
 
@@ -118,7 +118,7 @@ class PANEL_PT_WelderSubPanelDynamic(bpy.types.Panel):
         row.operator("weld.optimize")     
 
 class WelderPreferences(bpy.types.AddonPreferences):
-    bl_idname = parameters.NAME
+    bl_idname = __package__
     prefs_tabs: EnumProperty(
     items=(('info', "Info", "Welder Info"),
            ('options', "Options", "Welder Options")),
