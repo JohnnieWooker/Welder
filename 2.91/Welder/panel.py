@@ -25,69 +25,82 @@ class PANEL_PT_WelderToolsPanel(bpy.types.Panel):
  
     active=False 
     weld=None
+    info=""
  
     @classmethod
     def poll(self, context):
         if (context.active_object != None):
+            self.info=""
             if bpy.context.view_layer.objects.active.get('Weld') is not None:         
                 self.weld=bpy.context.view_layer.objects.active           
                 self.active= True
             else:
                 self.active= False
         else:
-            self.active= True            
+            if (bpy.context.mode=='OBJECT'):
+                self.info="Select an object"
+                return True
+            if (bpy.context.mode=='EDIT_MESH'): 
+                self.info="Select edges to weld"   
+                return True
+            if (bpy.context.mode=='EDIT_CURVE'): 
+                self.info="Select spline to weld" 
+                return True         
         return True        
  
     def draw(self, context):
-        
-        if (self.active):
-            try:
-                #row=self.layout.row()
-                #row.template_icon_view(self.weld.weld, "thumbnails") #add interactive and updatemethod
-                row=self.layout.row()
-                #row.prop(self.weld.weld,"name")
-                row=self.layout.row()
-                row.prop(utils.getSpline(),"use_cyclic_u",text="cyclic")
-                collapsebox = self.layout.box()   
-                row = collapsebox.row(align=True)
-                row.label(text="Collapse")
-                row = collapsebox.row()
-                row.prop(context.scene, "collapsesubsurf")
-                row = collapsebox.row()
-                row.operator("weld.collapse")
-                #row.prop(self.weld.weld, "blend")
-            except:
-                pass    
-            '''
-            row.template_icon_view(context.scene, "my_thumbnails")
-            row.enabled=not bpy.context.scene.welddrawing
-            row=self.layout.row()
-            row.operator("weld.weld")
-            row.enabled=not bpy.context.scene.welddrawing
-            row=self.layout.row()
-            row.operator("weld.draw")
-            row.enabled=not bpy.context.scene.welddrawing
-            row=self.layout.row()
-            
-            row.prop(context.scene, "surfaceblend")
-            row=self.layout.row()
-            row.prop(context.scene, 'type', expand=True) 
-            ''' 
+        if (self.info!=""):
+            row=self.layout.row()  
+            self.layout.label(text=self.info)
         else:
-            row=self.layout.row()
-            row.template_icon_view(context.scene, "my_thumbnails")
-            row.enabled=not bpy.context.scene.welddrawing
-            row=self.layout.row()
-            row.operator("weld.weld")
-            row.enabled=not bpy.context.scene.welddrawing
-            row=self.layout.row()
-            row.operator("weld.draw")
-            row.enabled=not bpy.context.scene.welddrawing
-            row=self.layout.row()
-            row.prop(context.scene, "cyclic")
-            row.prop(context.scene, "surfaceblend")
-            row=self.layout.row()
-            row.prop(context.scene, 'type', expand=True)          
+            if (self.active):
+                try:
+                    #row=self.layout.row()
+                    #row.template_icon_view(self.weld.weld, "thumbnails") #add interactive and updatemethod
+                    row=self.layout.row()
+                    #row.prop(self.weld.weld,"name")
+                    row=self.layout.row()
+                    row.prop(utils.getSpline(),"use_cyclic_u",text="cyclic")
+                    collapsebox = self.layout.box()   
+                    row = collapsebox.row(align=True)
+                    row.label(text="Collapse")
+                    row = collapsebox.row()
+                    row.prop(context.scene, "collapsesubsurf")
+                    row = collapsebox.row()
+                    row.operator("weld.collapse")
+                    #row.prop(self.weld.weld, "blend")
+                except:
+                    pass    
+                '''
+                row.template_icon_view(context.scene, "my_thumbnails")
+                row.enabled=not bpy.context.scene.welddrawing
+                row=self.layout.row()
+                row.operator("weld.weld")
+                row.enabled=not bpy.context.scene.welddrawing
+                row=self.layout.row()
+                row.operator("weld.draw")
+                row.enabled=not bpy.context.scene.welddrawing
+                row=self.layout.row()
+                
+                row.prop(context.scene, "surfaceblend")
+                row=self.layout.row()
+                row.prop(context.scene, 'type', expand=True) 
+                ''' 
+            else:
+                row=self.layout.row()
+                row.template_icon_view(context.scene, "my_thumbnails")
+                row.enabled=not bpy.context.scene.welddrawing
+                row=self.layout.row()
+                row.operator("weld.weld")
+                row.enabled=not bpy.context.scene.welddrawing
+                row=self.layout.row()
+                row.operator("weld.draw")
+                row.enabled=not bpy.context.scene.welddrawing
+                row=self.layout.row()
+                row.prop(context.scene, "cyclic")
+                row.prop(context.scene, "surfaceblend")
+                row=self.layout.row()
+                row.prop(context.scene, 'type', expand=True)          
         
 class PANEL_PT_WelderSubPanelDynamic(bpy.types.Panel):        
     bl_label = "Shape"
@@ -95,18 +108,18 @@ class PANEL_PT_WelderSubPanelDynamic(bpy.types.Panel):
     bl_space_type = "VIEW_3D"
     bl_region_type = "UI"
     bl_category = parameters.NAME
-
     
     @classmethod
-    def poll(cls, context):
+    def poll(self, context):
         if (context.active_object != None):
             if bpy.context.view_layer.objects.active.get('Weld') is not None:                
                 return True
             else: return False
-        else: return False
+        else:
+            return False
     
     def draw(self, context):  
-        #bpy.context.scene.cyclic=cehckIfCyclic()
+        #bpy.context.scene.cyclic=cehckIfCyclic()        
         row=self.layout.row()
         row.operator("weld.shape", text=bpy.context.scene.shapebuttonname)
         box = self.layout.box() 
