@@ -1,4 +1,5 @@
 import bpy
+import datetime
 import bgl
 import gpu
 from gpu_extras.batch import batch_for_shader
@@ -650,13 +651,13 @@ def collapse():
     bpy.ops.object.select_all(action='DESELECT')
     for o in selected:        
         try:
-            intersectors=getIntersectors(o)        
+            intersectors=getIntersectors(o)   
             oldcollections=getCollections(intersectors)
             col=addToTemporaryCollection(parameters.INTERSECTION_COLLECTION_NAME,intersectors)
-            collapseCurveAndArray(o,bpy.context.scene.collapsesubsurf)
-            deselectVerts(o)   
-            booleanIntersectors(o,col)
-            removeSelectedFaces(o)
+            collapseCurveAndArray(o,bpy.context.scene.collapsesubsurf)           
+            deselectVerts(o)             
+            booleanIntersectors(o,col)          
+            removeSelectedFaces(o)             
             bpy.data.collections.remove(col)
             o['Weld']=None
         except Exception as e:

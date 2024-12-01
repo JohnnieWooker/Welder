@@ -569,24 +569,27 @@ class OBJECT_OT_ShapeModifyModal(bpy.types.Operator):
     bl_label = "Weld shape modify modal"
     _timer = None
     def modal(self, context, event):
-        if event.type in {'RIGHTMOUSE', 'ESC'} or not bpy.context.scene.shapemodified or bpy.context.view_layer.objects.active!=self.obj:
-            self.cancel(context)
-            return {'CANCELLED'}
-        if event.type == 'TIMER':
-            #storing data inside custom property
-            counter=0
-            list=[]
-            for i in range(len(bpy.data.node_groups['WeldCurveData'].nodes[utils.curve_node_mapping["WeldCurve"]].mapping.curves[3].points)):
-                list.append(bpy.data.node_groups['WeldCurveData'].nodes[utils.curve_node_mapping["WeldCurve"]].mapping.curves[3].points[i].location[0])
-                list.append(bpy.data.node_groups['WeldCurveData'].nodes[utils.curve_node_mapping["WeldCurve"]].mapping.curves[3].points[i].location[1])
-                counter=counter+2
-            self.obj["shape_points"]=list
-            #translating curve position into world position
-            utils.translatepoints(self,utils.matrixtolist(list),lattice_error_thresh)
-                        
+        try:
+            if event.type in {'RIGHTMOUSE', 'ESC'} or not bpy.context.scene.shapemodified or bpy.context.view_layer.objects.active!=self.obj:
+                self.cancel(context)
+                return {'CANCELLED'}
+            if event.type == 'TIMER':
+                #storing data inside custom property
+                counter=0
+                list=[]
+                for i in range(len(bpy.data.node_groups['WeldCurveData'].nodes[utils.curve_node_mapping["WeldCurve"]].mapping.curves[3].points)):
+                    list.append(bpy.data.node_groups['WeldCurveData'].nodes[utils.curve_node_mapping["WeldCurve"]].mapping.curves[3].points[i].location[0])
+                    list.append(bpy.data.node_groups['WeldCurveData'].nodes[utils.curve_node_mapping["WeldCurve"]].mapping.curves[3].points[i].location[1])
+                    counter=counter+2
+                self.obj["shape_points"]=list
+                #translating curve position into world position
+                utils.translatepoints(self,utils.matrixtolist(list),lattice_error_thresh)     
+        except:
+                self.cancel(context)
+                return {'CANCELLED'}                               
         return {'PASS_THROUGH'}
     def cancel(self, context):
-        utils.enablemodifiers(self.obj)
+        utils.enabledatatransfer(self.obj)
         bpy.context.view_layer.objects.active=self.obj
         utils.destroyLattice(self)
         utils.removenode()
@@ -594,7 +597,7 @@ class OBJECT_OT_ShapeModifyModal(bpy.types.Operator):
         bpy.context.scene.shapebuttonname="Modify"
         wm = context.window_manager
         wm.event_timer_remove(self._timer)    
-    def execute(self, context):         
+    def execute(self, context):       
         obj=bpy.context.view_layer.objects.active 
         matrix=obj.matrix_world
         utils.cleanupWeld(obj)
@@ -618,11 +621,11 @@ class OBJECT_OT_ShapeModifyModal(bpy.types.Operator):
             bpy.ops.object.add(type='LATTICE', align='VIEW', enter_editmode=False, location=obj.location,)
             obj_lattice=bpy.context.view_layer.objects.active
             utils.hidemods(obj,False)  
-            #print(dimensions)
             obj_lattice.rotation_euler=obj.rotation_euler
             obj_lattice.rotation_euler[0]=obj_lattice.rotation_euler[0]+0.785398163
             scalecorrected=obj.scale
-            obj_lattice.dimensions=(dimensions[0]*scalecorrected[0],dimensions[1]*scalecorrected[1],dimensions[2]*scalecorrected[2])
+            #obj_lattice.dimensions=(dimensions[0]*scalecorrected[0],dimensions[1]*scalecorrected[1],dimensions[2]*scalecorrected[2])
+            obj_lattice.scale=(dimensions[0]*scalecorrected[0],dimensions[1]*scalecorrected[1],dimensions[2]*scalecorrected[2])
             obj_lattice.location=utils.getcenterofmass(obj)
             utils.hidemods(obj,True)  
             lattice.object=obj_lattice    
