@@ -667,12 +667,13 @@ def collapse():
         try:
             intersectors=getIntersectors(o)   
             oldcollections=getCollections(intersectors)
-            col=addToTemporaryCollection(parameters.INTERSECTION_COLLECTION_NAME,intersectors)
-            collapseCurveAndArray(o,bpy.context.scene.collapsesubsurf)           
+            #col=addToTemporaryCollection(parameters.INTERSECTION_COLLECTION_NAME,intersectors)
+            collapseCurveAndArray(o)           
             deselectVerts(o)             
-            booleanIntersectors(o,col)          
-            removeSelectedFaces(o)             
-            bpy.data.collections.remove(col)
+            booleanIntersectors(o,intersectors)          
+            removeSelectedFaces(o)          
+            collapseSubsurf(o)   
+            #bpy.data.collections.remove(col)
             o['Weld']=None
         except Exception as e:
             if (debug): print(e)
@@ -690,16 +691,28 @@ def removeSelectedFaces(o):
     bpy.ops.object.select_all(action='DESELECT')
     return
 
-def booleanIntersectors(obj,col):
-    if (not bpy.context.scene.collapseBool): return
+def fillNonManifold():
+    bpy.ops.object.mode_set(mode='EDIT')
+    bpy.ops.mesh.select_all(action='DESELECT')
+    bpy.ops.mesh.select_non_manifold()
+    bpy.ops.mesh.edge_face_add()
+    bpy.ops.mesh.select_all(action='DESELECT')
+    bpy.ops.object.mode_set(mode='OBJECT')
+
+def booleanIntersectors(obj,intersectors):
+    if (not bpy.context.scene.collapseBool): return    
     bpy.context.view_layer.objects.active=obj
     obj.select_set(True)
-    boolMod = obj.modifiers.new(type="BOOLEAN", name="bool_intersection")
-    boolMod.operand_type = 'COLLECTION'
-    boolMod.collection=col
-    boolMod.use_hole_tolerant=True
-    #boolMod.solver='FAST'
-    bpy.ops.object.modifier_apply(modifier=boolMod.name)    
+    fillNonManifold()
+    for intersector in intersectors:
+        boolMod = obj.modifiers.new(type="BOOLEAN", name="bool_intersection")
+        boolMod.object=intersector
+        #boolMod.operand_type = 'COLLECTION'
+        #boolMod.collection=col
+        if hasattr(boolMod, "use_hole_tolerant"): boolMod.use_hole_tolerant=True
+        #if hasattr(boolMod, "solver"): boolMod.solver='EXACT'
+        if hasattr(boolMod, "solver"): boolMod.solver='FAST'
+        #bpy.ops.object.modifier_apply(modifier=boolMod.name)    
     bpy.ops.object.select_all(action='DESELECT')  
     return
 
@@ -712,7 +725,23 @@ def deselectVerts(o):
     bpy.ops.object.select_all(action='DESELECT')
     return
 
-def collapseCurveAndArray(obj,subAlso):
+def collapseSubsurf(obj):
+    if (not bpy.context.scene.collapsesubsurf): return
+    try:
+        bpy.ops.object.select_all(action='DESELECT')
+        bpy.context.view_layer.objects.active=obj
+        obj.select_set(True)
+        mods=[]
+        for m in obj.modifiers:
+            if m.type=='SUBSURF':  
+                mods.append(m.name)  
+        for m in mods: bpy.ops.object.modifier_apply(modifier=m)            
+        bpy.ops.object.select_all(action='DESELECT')
+    except:
+        pass   
+    return
+
+def collapseCurveAndArray(obj):
     try:
         bpy.context.view_layer.objects.active=obj
         obj.select_set(True)
@@ -720,8 +749,6 @@ def collapseCurveAndArray(obj,subAlso):
         for m in obj.modifiers:
             if m.type=='CURVE' or m.type=='ARRAY':
                 mods.append(m.name)
-            if subAlso and m.type=='SUBSURF':  
-                mods.append(m.name)  
         for m in mods: bpy.ops.object.modifier_apply(modifier=m)            
         bpy.ops.object.select_all(action='DESELECT')
     except:
