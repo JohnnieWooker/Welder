@@ -90,6 +90,8 @@ WelderVariables,
 WelderSettings
 )
 bpy.types.Scene.cyclic=bpy.props.BoolProperty(name="cyclic", description="cyclic",default=True)
+bpy.types.Scene.materialOverride=bpy.props.BoolProperty(name="materialOverride", description="materialOverride",default=False,update=panel.update_material_names())
+bpy.types.Scene.overridenMaterial=bpy.props.EnumProperty(items=panel.generate_material_enum)
 bpy.types.Scene.surfaceblend=bpy.props.BoolProperty(name="Surface blend", description="Surface blend",default=False)
 bpy.types.Scene.collapsesubsurf=bpy.props.BoolProperty(name="Collapse subsurf", description="Collapse subsurf",default=False)
 bpy.types.Scene.type=bpy.props.EnumProperty(items=[

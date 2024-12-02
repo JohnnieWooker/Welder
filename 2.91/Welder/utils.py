@@ -503,6 +503,18 @@ def ScanForSurfaces(curve):
             pass    
     return surfaces
 
+def OverrideWeldMaterial(obj):
+    if bpy.context.scene.materialOverride:
+        destinationMaterial=None
+        for mat in bpy.data.materials:
+            if (str(bpy.context.scene.overridenMaterial) == str(mat.name)):
+                destinationMaterial=mat   
+                break
+        if (destinationMaterial!=None):    
+            materialnum = len(obj.data.materials)
+            for i in range(0,materialnum):
+                obj.data.materials[i]=destinationMaterial 
+
 def AddBlending(obj,surfaces):
     if bpy.context.scene.surfaceblend:
         if not bpy.context.scene.type=='Decal':        
@@ -579,6 +591,7 @@ def replaceProxyWeldWithFinal(obj):
             setattr(obj.modifiers[stuff[0].name], prop, getattr(stuff[0], prop))
 
     remove_obj(OBJ_WELD.name)
+    OverrideWeldMaterial(obj)
     obj.name=object
     for v in vg_names:
         vg=obj.vertex_groups.new(name=v)
@@ -643,6 +656,7 @@ def MakeWeldFromCurve(OBJ1,edge_length,obje,matrix,surfaces,proxy):
     OBJ_WELD.select_set(True)  
     bpy.context.view_layer.objects.active = OBJ_WELD
     AddBlending(OBJ_WELD,surfaces)
+    OverrideWeldMaterial(OBJ_WELD)
     return(OBJ_WELD)  
 
 def collapse():

@@ -19,10 +19,8 @@ def generate_material_enum(self, context):
     return enum_items     
 
 def update_material_names():
-    print("test")
     global welder_material_names
     try:
-        print(welder_material_names)
         welder_material_names = [m.name for m in bpy.data.materials]
     except Exception as e:            
         print("Error: "+str(e))   
@@ -168,13 +166,6 @@ class WelderPreferences(bpy.types.AddonPreferences):
     items=(('FAST', "FAST", "FAST"),
            ('EXACT', "EXACT", "EXACT")),
     default='FAST')
-    materialOverride:BoolProperty(
-        default=False,
-        update=update_material_names()
-    )
-    overridenMaterial:EnumProperty(
-        items=generate_material_enum,
-    )
 
     def draw(self, context):
         wm = context.window_manager
@@ -207,7 +198,7 @@ class WelderPreferences(bpy.types.AddonPreferences):
             layout.label(text="- adjust weld's profile by playing with curve widget")
             layout.label(text="- click 'Apply' button to accept results")
     
-        if self.prefs_tabs == 'options':
+        if self.prefs_tabs == 'options' and bpy.context.scene.materialOverride != None:
             box = layout.box()    
             row = box.row(align=True)
             row.label(text="Panel Category:")
@@ -220,5 +211,7 @@ class WelderPreferences(bpy.types.AddonPreferences):
             row.prop(self, "solver", text="")    
             row = box.row(align=True) 
             row.label(text="Material Override:")
-            row.prop(self, "materialOverride", text="")   
-            row.prop(self, "overridenMaterial", text="")   
+            row.prop(context.scene, "materialOverride", text="")   
+            rowO = box.row(align=True) 
+            rowO.prop(context.scene, "overridenMaterial", text="")   
+            rowO.enabled = bpy.context.scene.materialOverride
