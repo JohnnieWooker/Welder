@@ -106,13 +106,16 @@ def register():
             pass  
     context = bpy.context
     prefs = context.preferences.addons[__package__].preferences
-    panel.update_welder_category(prefs, context)         
+    panel.update_material_names()
+    panel.update_welder_category(prefs, context)             
     bpy.types.Object.weld = bpy.props.PointerProperty(type=WelderSettings)
     bpy.types.VIEW3D_MT_object.append(operators.menu_func)
+    bpy.app.handlers.depsgraph_update_post.append(panel.material_update_handler)
 
 def unregister():
     for cls in classes:
         if utils.debug: print(cls)
         bpy.utils.unregister_class(cls)
+    bpy.app.handlers.depsgraph_update_post.remove(panel.material_update_handler)    
     #bpy.utils.unregister_class(PANEL_PT_WelderToolsPanel)
     

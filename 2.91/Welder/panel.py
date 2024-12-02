@@ -1,9 +1,31 @@
 import bpy
-from bpy.props import StringProperty, EnumProperty
+from bpy.props import StringProperty, EnumProperty, BoolProperty
 from bpy.types import AddonPreferences
+from bpy.app.handlers import persistent
 
 from . import parameters
 from . import utils
+
+welder_material_names = []
+
+@persistent
+def material_update_handler(scene, depsgraph):
+    update_material_names()
+
+def generate_material_enum(self, context):
+    enum_items = []      
+    for idx, mat_name in enumerate(welder_material_names, 1):  # Start enumerating from 1
+        enum_items.append((mat_name, mat_name, "", "MATERIAL", idx))
+    return enum_items     
+
+def update_material_names():
+    print("test")
+    global welder_material_names
+    try:
+        print(welder_material_names)
+        welder_material_names = [m.name for m in bpy.data.materials]
+    except Exception as e:            
+        print("Error: "+str(e))   
 
 def update_welder_category(self, context):
     try:
@@ -146,6 +168,13 @@ class WelderPreferences(bpy.types.AddonPreferences):
     items=(('FAST', "FAST", "FAST"),
            ('EXACT', "EXACT", "EXACT")),
     default='FAST')
+    materialOverride:BoolProperty(
+        default=False,
+        update=update_material_names()
+    )
+    overridenMaterial:EnumProperty(
+        items=generate_material_enum,
+    )
 
     def draw(self, context):
         wm = context.window_manager
@@ -189,3 +218,7 @@ class WelderPreferences(bpy.types.AddonPreferences):
             row = box.row(align=True) 
             row.label(text="Intersection solver:")
             row.prop(self, "solver", text="")    
+            row = box.row(align=True) 
+            row.label(text="Material Override:")
+            row.prop(self, "materialOverride", text="")   
+            row.prop(self, "overridenMaterial", text="")   
