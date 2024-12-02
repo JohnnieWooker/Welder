@@ -59,12 +59,9 @@ def generate_previews(redraw=False):
                     
     return enum_items 
 
-bpy.types.Scene.weldsmooth=bpy.props.BoolProperty(
-    name="weldsmooth", description="weldsmooth", default=False)
-bpy.types.Scene.welddrawing=bpy.props.BoolProperty(
-    name="welddrawing", description="welddrawing", default=False)
-bpy.types.Scene.shapemodified=bpy.props.BoolProperty(
-    name="shapemodified", description="shapemodified", default=False)     
+bpy.types.Scene.weldsmooth=bpy.props.BoolProperty(name="weldsmooth", description="weldsmooth", default=False)
+bpy.types.Scene.welddrawing=bpy.props.BoolProperty(name="welddrawing", description="welddrawing", default=False)
+bpy.types.Scene.shapemodified=bpy.props.BoolProperty(name="shapemodified", description="shapemodified", default=False)     
 preview_collections = {}
 bpy.types.Scene.shapebuttonname=bpy.props.StringProperty(name="Shape button name", default="Modify")
 pcoll = bpy.utils.previews.new()
@@ -72,7 +69,17 @@ images_path = pcoll.images_location = os.path.join(os.path.dirname(__file__), "w
 pcoll.images_location = bpy.path.abspath(images_path)
 preview_collections["thumbnail_previews"] = pcoll
 bpy.types.Scene.my_thumbnails = bpy.props.EnumProperty(items=generate_previews()) 
-             
+bpy.types.Scene.cyclic=bpy.props.BoolProperty(name="cyclic", description="cyclic",default=True)
+bpy.types.Scene.materialOverride=bpy.props.BoolProperty(name="materialOverride", description="materialOverride",default=False,update=panel.update_material_names())
+bpy.types.Scene.overridenMaterial=bpy.props.EnumProperty(items=panel.generate_material_enum)
+bpy.types.Scene.surfaceblend=bpy.props.BoolProperty(name="Surface blend", description="Surface blend",default=False)
+bpy.types.Scene.collapsesubsurf=bpy.props.BoolProperty(name="Collapse subsurf", description="Collapse subsurf",default=False)
+bpy.types.Scene.collapseBool=bpy.props.BoolProperty(name="Boolean Intersectors", description="Boolean Intersectors",default=False)
+bpy.types.Scene.type=bpy.props.EnumProperty(items=[
+    ("Geometry", "Geometry", "Geometry", 0),
+    ("Decal", "Decal", "Decal", 1),
+    ])
+
 classes =(
 operators.OBJECT_OT_OnLoadCleanup,
 operators.OBJECT_OT_SimplifyCurve,
@@ -89,15 +96,6 @@ panel.WelderPreferences,
 WelderVariables,
 WelderSettings
 )
-bpy.types.Scene.cyclic=bpy.props.BoolProperty(name="cyclic", description="cyclic",default=True)
-bpy.types.Scene.materialOverride=bpy.props.BoolProperty(name="materialOverride", description="materialOverride",default=False,update=panel.update_material_names())
-bpy.types.Scene.overridenMaterial=bpy.props.EnumProperty(items=panel.generate_material_enum)
-bpy.types.Scene.surfaceblend=bpy.props.BoolProperty(name="Surface blend", description="Surface blend",default=False)
-bpy.types.Scene.collapsesubsurf=bpy.props.BoolProperty(name="Collapse subsurf", description="Collapse subsurf",default=False)
-bpy.types.Scene.type=bpy.props.EnumProperty(items=[
-    ("Geometry", "Geometry", "Geometry", 0),
-    ("Decal", "Decal", "Decal", 1),
-    ])
 
 def register():
     for cls in classes:

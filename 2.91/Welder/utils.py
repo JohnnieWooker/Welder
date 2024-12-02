@@ -691,12 +691,14 @@ def removeSelectedFaces(o):
     return
 
 def booleanIntersectors(obj,col):
+    if (not bpy.context.scene.collapseBool): return
     bpy.context.view_layer.objects.active=obj
     obj.select_set(True)
     boolMod = obj.modifiers.new(type="BOOLEAN", name="bool_intersection")
     boolMod.operand_type = 'COLLECTION'
     boolMod.collection=col
     boolMod.use_hole_tolerant=True
+    #boolMod.solver='FAST'
     bpy.ops.object.modifier_apply(modifier=boolMod.name)    
     bpy.ops.object.select_all(action='DESELECT')  
     return
