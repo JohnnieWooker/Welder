@@ -7,7 +7,7 @@ tagline = "Tool for generating welds"
 maintainer = "Łukasz Hoffmann"
 type = "add-on"
 
-website = "https://blenderartists.org/t/welder/672478/1"
+website = "https://documentation.forgegon.com/Welder"
 
 tags = ["Modeling"]
 
