@@ -16,6 +16,7 @@ from bpy_extras.view3d_utils import (
 
 from . import parameters
 
+materialOv=None
 debug=False
 curve_node_mapping = {}
 
@@ -503,17 +504,23 @@ def ScanForSurfaces(curve):
             pass    
     return surfaces
 
-def OverrideWeldMaterial(obj):
+def getOverrideMaterial():
+    global materialOv
     if bpy.context.scene.materialOverride:
         destinationMaterial=None
         for mat in bpy.data.materials:
             if (str(bpy.context.scene.overridenMaterial) == str(mat.name)):
-                destinationMaterial=mat   
+                destinationMaterial=mat
                 break
-        if (destinationMaterial!=None):    
+        if (destinationMaterial!=None):             
+            materialOv=destinationMaterial
+
+def OverrideWeldMaterial(obj):
+    if bpy.context.scene.materialOverride:
+        if (materialOv!=None):
             materialnum = len(obj.data.materials)
             for i in range(0,materialnum):
-                obj.data.materials[i]=destinationMaterial 
+                obj.data.materials[i]=materialOv
 
 def AddBlending(obj,surfaces):
     if bpy.context.scene.surfaceblend:

@@ -118,6 +118,10 @@ class PANEL_PT_WelderToolsPanel(bpy.types.Panel):
                 row=self.layout.row()
                 row.operator("weld.draw")
                 row.enabled=not bpy.context.scene.welddrawing
+                if (bpy.context.scene.materialOverride != None):
+                    if (bpy.context.scene.materialOverride==True):
+                        rowO=self.layout.row()
+                        rowO.prop(context.scene, "overridenMaterial", text="Material")   
                 row=self.layout.row()
                 row.prop(context.scene, "cyclic")
                 row.prop(context.scene, "surfaceblend")
@@ -213,7 +217,4 @@ class WelderPreferences(bpy.types.AddonPreferences):
             row.prop(self, "solver", text="")    
             row = box.row(align=True) 
             row.label(text="Material Override:")
-            row.prop(context.scene, "materialOverride", text="")   
-            rowO = box.row(align=True) 
-            rowO.prop(context.scene, "overridenMaterial", text="")   
-            rowO.enabled = bpy.context.scene.materialOverride
+            row.prop(context.scene, "materialOverride", text="")

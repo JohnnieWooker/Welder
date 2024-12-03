@@ -128,6 +128,7 @@ class OBJECT_OT_WelderDrawOperator(bpy.types.Operator):
     def invoke(self, context, event):  
         self.drawended=False 
         utils.switchkeymap(False)         
+        utils.getOverrideMaterial()
         self.phase=0
         self.obje='' 
         iconname=bpy.context.scene.my_thumbnails
@@ -262,6 +263,7 @@ class OBJECT_OT_WeldButton(bpy.types.Operator):
         preserve=True
         edit=False
         objectstodel=bpy.context.selected_objects
+        utils.getOverrideMaterial()
         if (bpy.context.object==None):
             self.report({'ERROR'}, 'Invalid context or nothing selected')
             return {'FINISHED'}       
