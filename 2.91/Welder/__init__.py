@@ -22,7 +22,7 @@ from . import panel
 bl_info = {
     "name": "Welder",
     "author": "Łukasz Hoffmann",
-    "version": (1,4,5),
+    "version": (1,4,6),
     "location": "View 3D > Object Mode > Tool Shelf",
     "wiki_url": "https://documentation.forgegon.com/Welder",
     "tracker_url": "https://documentation.forgegon.com/Welder",
@@ -75,6 +75,7 @@ bpy.types.Scene.overridenMaterial=bpy.props.EnumProperty(items=panel.generate_ma
 bpy.types.Scene.surfaceblend=bpy.props.BoolProperty(name="Surface blend", description="Surface blend",default=False)
 bpy.types.Scene.collapsesubsurf=bpy.props.BoolProperty(name="Collapse subsurf", description="Collapse subsurf",default=False)
 bpy.types.Scene.collapseBool=bpy.props.BoolProperty(name="Boolean Intersectors", description="Boolean Intersectors",default=False)
+bpy.types.Scene.weldCollapseJoin=bpy.props.BoolProperty(name="Join With Source", description="Join with source mesh", default=False)
 bpy.types.Scene.type=bpy.props.EnumProperty(items=[
     ("Geometry", "Geometry", "Geometry", 0),
     ("Decal", "Decal", "Decal", 1),

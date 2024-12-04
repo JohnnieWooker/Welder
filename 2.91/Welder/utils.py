@@ -17,7 +17,7 @@ from bpy_extras.view3d_utils import (
 from . import parameters
 
 materialOv=None
-debug=False
+debug=True
 curve_node_mapping = {}
 
 def WeldNodeTree():
@@ -477,11 +477,14 @@ def CalculateCurveLength(curve,cyclic):
 
 def ScanForSurfaces(curve):
     surfaces=[]
+    mat = curve.matrix_world
     for p in curve.data.splines[0].points:
         #tu rob raycast i sprawdz meshe w poblizu
         direction=(0, 0, 1)
-        origin=(p.co.x,p.co.y,p.co.z)
+        origin=Vector((p.co.x,p.co.y,p.co.z))
         hit=None
+        if debug: 
+            print("Sampling from: "+str(mat @ origin))
         try:
             for i in range(0,5):
                 if i==0: direction=(0, 0, 1)
@@ -491,14 +494,15 @@ def ScanForSurfaces(curve):
                 if i==4: direction=(1, 0, 0)
                 if i==5: direction=(-1, 0, 0)
                 depsgraph = bpy.context.evaluated_depsgraph_get()
-                hit=bpy.context.scene.ray_cast(depsgraph, origin, direction, distance=0.00001)
+                hit=bpy.context.scene.ray_cast(depsgraph, mat @ origin, direction, distance=0.00001)
                 if hit[0]:
                     break
-            if not hit[4] in surfaces and not hit[4]==None:
-                if debug: 
-                    print("Surface is:")
-                    print(hit[4])
-                surfaces.append(hit[4])    
+            if hit[0]:    
+                if not hit[4] in surfaces and not hit[4]==None:
+                    if debug: 
+                        print("Surface is:")
+                        print(hit[4])
+                    surfaces.append(hit[4])    
         except Exception as e:
             print(e)
             pass    
@@ -666,27 +670,52 @@ def MakeWeldFromCurve(OBJ1,edge_length,obje,matrix,surfaces,proxy):
     OverrideWeldMaterial(OBJ_WELD)
     return(OBJ_WELD)  
 
+def quickCollapse(obj,intersectors):
+    bpy.ops.object.select_all(action='DESELECT')
+    bpy.context.view_layer.objects.active=obj
+    obj.select_set(True)
+    bpy.ops.object.convert(target='MESH')
+    bpy.context.view_layer.objects.active=None
+    bpy.ops.object.select_all(action='DESELECT')
+    if (len(intersectors)>0):
+        obj.select_set(True)
+        intersectors[0].select_set(True)
+        bpy.context.view_layer.objects.active=intersectors[0]
+        if debug:
+            print("Joining "+obj.name+" with "+intersectors[0].name)
+        bpy.ops.object.join()   
+    bpy.ops.object.select_all(action='DESELECT')    
+
 def collapse():
     selected=bpy.context.selected_objects
     oldactive=bpy.context.view_layer.objects.active
     bpy.ops.object.select_all(action='DESELECT')
+    merged=[]
     for o in selected:        
         try:
+            bpy.context.view_layer.objects.active=None
             intersectors=getIntersectors(o)   
-            oldcollections=getCollections(intersectors)
-            #col=addToTemporaryCollection(parameters.INTERSECTION_COLLECTION_NAME,intersectors)
-            collapseCurveAndArray(o)           
+            collapseCurveAndArray(o)  
             deselectVerts(o)             
             booleanIntersectors(o,intersectors)          
-            removeSelectedFaces(o)          
-            collapseSubsurf(o)   
-            #bpy.data.collections.remove(col)
+            removeSelectedFaces(o)   
+            if(bpy.context.scene.weldCollapseJoin):                
+                quickCollapse(o,intersectors)  
+                if (len(intersectors)>0): 
+                    merged.append(intersectors[0]) 
+                else: merged.append(o)     
+            else:         
+                collapseSubsurf(o)   
             o['Weld']=None
         except Exception as e:
             if (debug): print(e)
             pass
-    bpy.context.view_layer.objects.active=oldactive
-    for o in selected: o.select_set(True)    
+    if(bpy.context.scene.weldCollapseJoin):
+         for o in merged: o.select_set(True)   
+         if (len(merged)>0): bpy.context.view_layer.objects.active=merged[-1]
+    else:              
+        bpy.context.view_layer.objects.active=oldactive
+        for o in selected: o.select_set(True)    
     return {'FINISHED'}
 
 def removeSelectedFaces(o):
@@ -752,11 +781,14 @@ def collapseCurveAndArray(obj):
     try:
         bpy.context.view_layer.objects.active=obj
         obj.select_set(True)
+        curveObjName=""
         mods=[]
         for m in obj.modifiers:
+            if m.type=='CURVE': curveObjName=m.object.name
             if m.type=='CURVE' or m.type=='ARRAY':
                 mods.append(m.name)
-        for m in mods: bpy.ops.object.modifier_apply(modifier=m)            
+        for m in mods: bpy.ops.object.modifier_apply(modifier=m)         
+        if (curveObjName!=""): remove_obj(curveObjName)   
         bpy.ops.object.select_all(action='DESELECT')
     except:
         pass   

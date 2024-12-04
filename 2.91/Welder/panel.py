@@ -86,8 +86,11 @@ class PANEL_PT_WelderToolsPanel(bpy.types.Panel):
                     row.label(text="Collapse")
                     row = collapsebox.row()
                     row.prop(context.scene, "collapsesubsurf")
+                    row.enabled=not bpy.context.scene.weldCollapseJoin
                     row = collapsebox.row()
                     row.prop(context.scene, "collapseBool")
+                    row = collapsebox.row()
+                    row.prop(context.scene, "weldCollapseJoin")
                     row = collapsebox.row()
                     row.operator("weld.collapse")
                     #row.prop(self.weld.weld, "blend")
