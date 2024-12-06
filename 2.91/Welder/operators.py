@@ -685,6 +685,8 @@ class OBJECT_OT_CollapseButton(bpy.types.Operator):
 
 @persistent
 def load_handler(dummy):
+    for obj in bpy.data.objects: utils.update_driver(obj)    
+    bpy.context.view_layer.update()
     bpy.ops.weld.onloadcleanup('INVOKE_DEFAULT')
 
 bpy.app.handlers.load_post.append(load_handler)     

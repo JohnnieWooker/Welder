@@ -1,4 +1,5 @@
 import bpy
+import traceback
 import datetime
 import bgl
 import gpu
@@ -17,7 +18,7 @@ from bpy_extras.view3d_utils import (
 from . import parameters
 
 materialOv=None
-debug=True
+debug=False
 curve_node_mapping = {}
 
 def WeldNodeTree():
@@ -100,6 +101,25 @@ def weldchose(iconname):
         if iconname=='icon_6.png': return 'Weld_6'
         if iconname=='icon_7.png': return 'Weld_7'
         return ''  
+
+def update_driver(obj):
+    try:
+        if ("Weld" in obj):
+            for m in obj.modifiers:
+                if(m.type=="ARRAY"):  
+                    for fcurve in obj.animation_data.drivers:
+                        for i in range(0,len(fcurve.driver.variables)):
+                            var = fcurve.driver.variables[i]
+                            if (var.name == "size"):
+                                var.type = 'TRANSFORMS'
+                                var.name = "size"
+                                target = var.targets[0]
+                                target.transform_type = "SCALE_X"
+                                target.id = obj.id_data
+                                target.data_path = "scale[0]"  
+    except Exception as e:
+        print(e)
+        pass                              
 
 def add_driver(OBJ_WELD,array,number):
     fcurve=array.driver_add('count')
@@ -478,13 +498,14 @@ def CalculateCurveLength(curve,cyclic):
 def ScanForSurfaces(curve):
     surfaces=[]
     mat = curve.matrix_world
+        
     for p in curve.data.splines[0].points:
         #tu rob raycast i sprawdz meshe w poblizu
         direction=(0, 0, 1)
         origin=Vector((p.co.x,p.co.y,p.co.z))
         hit=None
         if debug: 
-            print("Sampling from: "+str(mat @ origin))
+            print("\tSampling from: "+str(mat @ origin))
         try:
             for i in range(0,5):
                 if i==0: direction=(0, 0, 1)
@@ -500,12 +521,17 @@ def ScanForSurfaces(curve):
             if hit[0]:    
                 if not hit[4] in surfaces and not hit[4]==None:
                     if debug: 
-                        print("Surface is:")
-                        print(hit[4])
-                    surfaces.append(hit[4])    
+                        print("\tDetected surface overlap at "+str(hit[1]))
+                        print("\t"+str(hit))
+                    surfaces.append(hit[4]) 
         except Exception as e:
             print(e)
-            pass    
+            pass  
+    if debug:    
+        if (len(surfaces)>0):
+            print("Detected total of "+str(len(surfaces))+" overlaps")
+            for surface in surfaces:
+                print(" is overlaping wtih "+ str(surface.name)) 
     return surfaces
 
 def getOverrideMaterial():
@@ -670,27 +696,28 @@ def MakeWeldFromCurve(OBJ1,edge_length,obje,matrix,surfaces,proxy):
     OverrideWeldMaterial(OBJ_WELD)
     return(OBJ_WELD)  
 
-def quickCollapse(obj,intersectors):
+def quickCollapse(obj):
     bpy.ops.object.select_all(action='DESELECT')
     bpy.context.view_layer.objects.active=obj
     obj.select_set(True)
     bpy.ops.object.convert(target='MESH')
     bpy.context.view_layer.objects.active=None
     bpy.ops.object.select_all(action='DESELECT')
-    if (len(intersectors)>0):
-        obj.select_set(True)
-        intersectors[0].select_set(True)
-        bpy.context.view_layer.objects.active=intersectors[0]
-        if debug:
-            print("Joining "+obj.name+" with "+intersectors[0].name)
-        bpy.ops.object.join()   
-    bpy.ops.object.select_all(action='DESELECT')    
+
+def joinObjects(obj_first,obj_sec):
+    bpy.ops.object.select_all(action='DESELECT')
+    bpy.data.objects[obj_first].select_set(True)
+    bpy.data.objects[obj_sec].select_set(True)
+    bpy.context.view_layer.objects.active=bpy.data.objects[obj_sec]
+    if debug:
+        print("Joining "+obj_first+" with "+obj_sec)
+    bpy.ops.object.join() 
 
 def collapse():
     selected=bpy.context.selected_objects
     oldactive=bpy.context.view_layer.objects.active
     bpy.ops.object.select_all(action='DESELECT')
-    merged=[]
+    collapsePairs=[]
     for o in selected:        
         try:
             bpy.context.view_layer.objects.active=None
@@ -699,20 +726,29 @@ def collapse():
             deselectVerts(o)             
             booleanIntersectors(o,intersectors)          
             removeSelectedFaces(o)   
-            if(bpy.context.scene.weldCollapseJoin):                
-                quickCollapse(o,intersectors)  
+            if(bpy.context.scene.weldCollapseJoin): 
+                quickCollapse(o)  
                 if (len(intersectors)>0): 
-                    merged.append(intersectors[0]) 
-                else: merged.append(o)     
+                    collapsePairs.append([o.name,intersectors[0].name])  
             else:         
                 collapseSubsurf(o)   
-            o['Weld']=None
+            try:
+                o['Weld']=None        
+            except:
+                pass 
         except Exception as e:
-            if (debug): print(e)
+            if (debug): print(traceback.format_exc())
             pass
     if(bpy.context.scene.weldCollapseJoin):
-         for o in merged: o.select_set(True)   
-         if (len(merged)>0): bpy.context.view_layer.objects.active=merged[-1]
+        try:
+            for pair in collapsePairs:
+                joinObjects(pair[0],pair[1])
+            for o in collapsePairs: 
+                bpy.data.objects[o[1]].select_set(True)
+            if (len(collapsePairs)>0): bpy.context.view_layer.objects.active=bpy.data.objects[collapsePairs[-1][1]]
+        except Exception as e:
+            if (debug): print(traceback.format_exc())
+            pass    
     else:              
         bpy.context.view_layer.objects.active=oldactive
         for o in selected: o.select_set(True)    
@@ -817,6 +853,8 @@ def getIntersectors(obj):
         if m.type=='VERTEX_WEIGHT_PROXIMITY':
             if (m.target not in intersectors): intersectors.append(m.target)
     if len(intersectors)<=0:
+        if (debug):
+            print("Unable to fetch surface data from modifiers. Initiating surface scan...")
         curve=getCurve(obj)
         if not curve==None: 
             surfaces=ScanForSurfaces(curve)
