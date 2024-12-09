@@ -121,6 +121,11 @@ def update_driver(obj):
         print(e)
         pass                              
 
+def updateGeoDecalSwitch(self, context):
+    print("changing")
+    print(self)
+    print(context)
+
 def add_driver(OBJ_WELD,array,number):
     fcurve=array.driver_add('count')
     driver = fcurve.driver
@@ -660,6 +665,7 @@ def MakeWeldFromCurve(OBJ1,edge_length,obje,matrix,surfaces,proxy):
     #print(filepath)    
     OBJ_WELD=bpy.context.selected_objects[0]
     OBJ_WELD.matrix_world=matrix
+    OBJ_WELD.welder_weldType=bpy.context.scene.type
     #adding properties to weldobject
     OBJ_WELD.weld.name=object
     OBJ_WELD.weld.blend=bpy.context.scene.surfaceblend

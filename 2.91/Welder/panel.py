@@ -81,6 +81,8 @@ class PANEL_PT_WelderToolsPanel(bpy.types.Panel):
                     #row.prop(self.weld.weld,"name")
                     row=self.layout.row()
                     row.prop(utils.getSpline(),"use_cyclic_u",text="cyclic")
+                    row=self.layout.row()
+                    row.prop(self.weld, "welder_weldType")
                     collapsebox = self.layout.box()   
                     row = collapsebox.row(align=True)
                     row.label(text="Collapse")
@@ -96,21 +98,6 @@ class PANEL_PT_WelderToolsPanel(bpy.types.Panel):
                     #row.prop(self.weld.weld, "blend")
                 except:
                     pass    
-                '''
-                row.template_icon_view(context.scene, "my_thumbnails")
-                row.enabled=not bpy.context.scene.welddrawing
-                row=self.layout.row()
-                row.operator("weld.weld")
-                row.enabled=not bpy.context.scene.welddrawing
-                row=self.layout.row()
-                row.operator("weld.draw")
-                row.enabled=not bpy.context.scene.welddrawing
-                row=self.layout.row()
-                
-                row.prop(context.scene, "surfaceblend")
-                row=self.layout.row()
-                row.prop(context.scene, 'type', expand=True) 
-                ''' 
             else:
                 row=self.layout.row()
                 row.template_icon_view(context.scene, "my_thumbnails")

@@ -1,7 +1,7 @@
 schema_version = "1.0.0"
 
 id = "Welder"
-version = "1.4.6"
+version = "1.4.7"
 name = "Welder"
 tagline = "Tool for generating welds"
 maintainer = "Łukasz Hoffmann"

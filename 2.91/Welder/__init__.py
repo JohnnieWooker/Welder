@@ -22,7 +22,7 @@ from . import panel
 bl_info = {
     "name": "Welder",
     "author": "Łukasz Hoffmann",
-    "version": (1,4,6),
+    "version": (1,4,7),
     "location": "View 3D > Object Mode > Tool Shelf",
     "wiki_url": "https://documentation.forgegon.com/Welder",
     "tracker_url": "https://documentation.forgegon.com/Welder",
@@ -80,6 +80,11 @@ bpy.types.Scene.type=bpy.props.EnumProperty(items=[
     ("Geometry", "Geometry", "Geometry", 0),
     ("Decal", "Decal", "Decal", 1),
     ])
+bpy.types.Object.welder_weldType=bpy.props.EnumProperty(items=[
+    ("Geometry", "Geometry", "Geometry", 0),
+    ("Decal", "Decal", "Decal", 1),
+    ], update=utils.updateGeoDecalSwitch)
+
 
 classes =(
 operators.OBJECT_OT_OnLoadCleanup,
