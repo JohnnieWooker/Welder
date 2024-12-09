@@ -122,9 +122,12 @@ def update_driver(obj):
         pass                              
 
 def updateGeoDecalSwitch(self, context):
-    print("changing")
+    print("changing to "+str(self.welder_weldType))
     print(self)
     print(context)
+    decal=(self.welder_weldType=="Decal")
+    print(decal)
+    #replaceProxyWeldWithFinal(self)
 
 def add_driver(OBJ_WELD,array,number):
     fcurve=array.driver_add('count')
@@ -602,7 +605,8 @@ def replaceProxyWeldWithFinal(obj):
     blendfile = os.path.join(current_path, parameters.WELD_FILE)  #refactor!
     section   = "/Object/"
     object=obj['Weld']
-    if (parameters.PROXY_SUFFIX in object): object=object.replace(parameters.PROXY_SUFFIX,"")
+    if (parameters.PROXY_SUFFIX in object): object=object.replace(parameters.PROXY_SUFFIX,"")    
+    obj['Weld']=object    
     filepath  = blendfile + section + object
     directory = blendfile + section
     filename  = object
@@ -643,35 +647,38 @@ def replaceProxyWeldWithFinal(obj):
         vg.add(verts,1.0,'ADD')    
     return
 
-def MakeWeldFromCurve(OBJ1,edge_length,obje,matrix,surfaces,proxy):
+def appendWeldObj(type,variant,proxy):
+    bpy.ops.object.select_all(action='DESELECT')
     current_path = os.path.dirname(os.path.realpath(__file__))
-    blendfile = os.path.join(current_path, parameters.WELD_FILE)  #ustawic wlasna sciezke!
+    blendfile = os.path.join(current_path, parameters.WELD_FILE)
     section   = "/Object/"
-    if (obje==''):
+    object=variant
+    if (variant==''):
         object="Weld_1"
-        if bpy.context.scene.type=='Decal': object=object+parameters.DECAL_SUFFIX
-    else:
-        object=obje
-        if proxy and not bpy.context.scene.type=='Decal': object=object+parameters.PROXY_SUFFIX
-
+        if type=='Decal': object=object+parameters.DECAL_SUFFIX
+    else:        
+        if proxy and not type=='Decal': object=object+parameters.PROXY_SUFFIX
     filepath  = blendfile + section + object
     directory = blendfile + section
     filename  = object
-
     bpy.ops.wm.append(
         filepath=filepath, 
         filename=filename,
-        directory=directory)
-    #print(filepath)    
+        directory=directory)    
     OBJ_WELD=bpy.context.selected_objects[0]
+    OBJ_WELD.weld.name=object
+    addprop(OBJ_WELD,object)
+    return(OBJ_WELD)
+
+def MakeWeldFromCurve(OBJ1,edge_length,obje,matrix,surfaces,proxy):
+
+    OBJ_WELD=appendWeldObj(bpy.context.scene.type,obje,proxy)
+    if (OBJ_WELD==None): return
     OBJ_WELD.matrix_world=matrix
     OBJ_WELD.welder_weldType=bpy.context.scene.type
-    #adding properties to weldobject
-    OBJ_WELD.weld.name=object
+    #adding properties to weldobject    
     OBJ_WELD.weld.blend=bpy.context.scene.surfaceblend
-    #print(bpy.context.scene.my_thumbnails)
-    OBJ_WELD["Dimensions"]=OBJ_WELD.dimensions    
-    addprop(OBJ_WELD,object)
+    OBJ_WELD["Dimensions"]=OBJ_WELD.dimensions
     
     array = OBJ_WELD.modifiers.new(type="ARRAY", name="array")
     array.use_merge_vertices=True

@@ -34,7 +34,7 @@ def update_welder_category(self, context):
     PANEL_PT_WelderToolsPanel.bl_category = context.preferences.addons[__package__].preferences.category
     PANEL_PT_WelderSubPanelDynamic.bl_category = context.preferences.addons[__package__].preferences.category
     bpy.utils.register_class(PANEL_PT_WelderToolsPanel)
-    bpy.utils.register_class(PANEL_PT_WelderSubPanelDynamic) 
+    bpy.utils.register_class(PANEL_PT_WelderSubPanelDynamic)
 
 class PANEL_PT_WelderToolsPanel(bpy.types.Panel):
     bl_label = parameters.NAME
