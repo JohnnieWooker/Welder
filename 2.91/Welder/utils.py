@@ -122,12 +122,13 @@ def update_driver(obj):
         pass                              
 
 def updateGeoDecalSwitch(self, context):
-    print("changing to "+str(self.welder_weldType))
-    print(self)
-    print(context)
-    decal=(self.welder_weldType=="Decal")
-    print(decal)
-    #replaceProxyWeldWithFinal(self)
+    if (not self.welder_weldType=="Proxy"):
+        print("changing to "+str(self.welder_weldType))
+        print(self)
+        print(context)
+        decal=(self.welder_weldType=="Decal")
+        print(decal)
+        #replaceProxyWeldWithFinal(self,self.welder_weldType)
 
 def add_driver(OBJ_WELD,array,number):
     fcurve=array.driver_add('count')
@@ -145,7 +146,7 @@ def disablemodifiers(obj):
     disabledatatransfer(obj)
 
 def enablemodifiers(obj):
-    if (bpy.context.preferences.addons[__package__].preferences.performance=='Fast'): replaceProxyWeldWithFinal(obj)
+    if (bpy.context.preferences.addons[__package__].preferences.performance=='Fast'): replaceProxyWeldWithFinal(obj,"Decal")
     enabledatatransfer(obj)
 
 def disabledatatransfer(obj):
@@ -600,24 +601,14 @@ def AddBlending(obj,surfaces):
                 dtm.data_types_loops = {'CUSTOM_NORMAL'}
                 counter=counter+1
 
-def replaceProxyWeldWithFinal(obj):
-    current_path = os.path.dirname(os.path.realpath(__file__))
-    blendfile = os.path.join(current_path, parameters.WELD_FILE)  #refactor!
-    section   = "/Object/"
+def replaceProxyWeldWithFinal(obj,geoType):
     object=obj['Weld']
     if (parameters.PROXY_SUFFIX in object): object=object.replace(parameters.PROXY_SUFFIX,"")    
-    obj['Weld']=object    
-    filepath  = blendfile + section + object
-    directory = blendfile + section
-    filename  = object
-    bpy.ops.wm.append(
-        filepath=filepath, 
-        filename=filename,
-        directory=directory)  
+    obj['Weld']=object
+    OBJ_WELD=appendWeldObj(geoType,object,False)
     vg_names=[]
     for v in obj.vertex_groups:
         vg_names.append(v.name)
-    OBJ_WELD=bpy.context.selected_objects[0]
     obj.data=OBJ_WELD.data.copy()
     mod_props = []
     bpy.ops.object.select_all(action = 'DESELECT')
