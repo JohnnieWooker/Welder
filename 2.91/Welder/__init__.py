@@ -84,7 +84,7 @@ bpy.types.Object.welder_weldType=bpy.props.EnumProperty(items=[
     ("Geometry", "Geometry", "Geometry", 0),
     ("Decal", "Decal", "Decal", 1),
     ], update=utils.updateGeoDecalSwitch)
-
+bpy.types.Object.welder_weldEnabled=bpy.props.BoolProperty(name="welder_weldEnabled", description="welder_weldEnabled", default=False)
 
 classes =(
 operators.OBJECT_OT_OnLoadCleanup,

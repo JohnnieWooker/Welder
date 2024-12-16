@@ -122,13 +122,9 @@ def update_driver(obj):
         pass                              
 
 def updateGeoDecalSwitch(self, context):
-    if (not self.welder_weldType=="Proxy"):
-        print("changing to "+str(self.welder_weldType))
-        print(self)
-        print(context)
+    if (self.welder_weldEnabled):
         decal=(self.welder_weldType=="Decal")
-        print(decal)
-        #replaceProxyWeldWithFinal(self,self.welder_weldType)
+        replaceProxyWeldWithFinal(self,self.welder_weldType)
 
 def add_driver(OBJ_WELD,array,number):
     fcurve=array.driver_add('count')
@@ -147,6 +143,7 @@ def disablemodifiers(obj):
 
 def enablemodifiers(obj):
     if (bpy.context.preferences.addons[__package__].preferences.performance=='Fast'): replaceProxyWeldWithFinal(obj,"Decal")
+    obj.welder_weldEnabled=True
     enabledatatransfer(obj)
 
 def disabledatatransfer(obj):
