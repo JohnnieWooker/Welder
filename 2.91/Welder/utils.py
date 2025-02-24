@@ -123,7 +123,6 @@ def update_driver(obj):
 
 def updateGeoDecalSwitch(self, context):
     if (self.welder_weldEnabled):
-        decal=(self.welder_weldType=="Decal")
         replaceProxyWeldWithFinal(self,self.welder_weldType)
 
 def add_driver(OBJ_WELD,array,number):
@@ -649,6 +648,7 @@ def appendWeldObj(type,variant,proxy):
     filepath  = blendfile + section + object
     directory = blendfile + section
     filename  = object
+    print("appending "+str(filename))
     bpy.ops.wm.append(
         filepath=filepath, 
         filename=filename,
