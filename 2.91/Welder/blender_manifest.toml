@@ -1,7 +1,7 @@
 schema_version = "1.0.0"
 
 id = "Welder"
-version = "1.4.7"
+version = "1.4.8"
 name = "Welder"
 tagline = "Tool for generating welds"
 maintainer = "Łukasz Hoffmann"
@@ -12,7 +12,7 @@ website = "https://documentation.forgegon.com/Welder"
 tags = ["Modeling"]
 
 blender_version_min = "4.1.0"
-# blender_version_max = "5.2.0"
+#blender_version_max = "4.3.2"
 
 license = [
   "SPDX:GPL-3.0-or-later",

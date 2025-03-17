@@ -2,7 +2,7 @@ import bpy
 import mathutils
 import bmesh
 from mathutils import Vector
-import os
+import sys, os
 from math import (floor,ceil)
 from bpy.app.handlers import persistent
 
@@ -62,38 +62,8 @@ class OBJECT_OT_WelderDrawOperator(bpy.types.Operator):
                     bpy.context.scene.welddrawing=False
                     return {'FINISHED'}
                 context = bpy.context
-                scene = context.scene        
                 
-                gpencil_obj_name="gp_weld"             
-                
-                if gpencil_obj_name not in bpy.context.scene.objects:
-                    bpy.ops.object.gpencil_add(location=(0, 0, 0), type='EMPTY')                
-                    bpy.context.view_layer.objects.active.name = gpencil_obj_name
-                gp = bpy.context.scene.objects[gpencil_obj_name]    
-                # Reference grease pencil layer or create one of none exists
-                if gp.data.layers:
-                    gpl = gp.data.layers[0]
-                else:
-                    gpl = gp.data.layers.new('Welding_Curve', set_active = True )
-
-                # Reference active GP frame or create one of none exists    
-                if gpl.active_frame:
-                    fr = gpl.active_frame
-                else:
-                    fr = gpl.frames.new(0) 
-
-                # Create a new stroke
-                str = fr.strokes.new()
-                str.display_mode = '3DSPACE'
-                str.line_width = 1 # default 3
-                
-                str.points.add(len(self.mouse_path))
-                for p0, p in zip(self.mouse_path, str.points):
-                    p.co = p0  
-                bpy.ops.gpencil.convert(type='PATH', use_timing_data=False)
-                
-                utils.remove_obj(gp.name)
-                #bpy.ops.gpencil.data_unlink()             
+                utils.create_curve_from_mouse_path(self.mouse_path,cyclic)         
                   
                 #set proper radius
                 bpy.context.view_layer.objects.active = bpy.context.selected_objects[0]
@@ -119,6 +89,8 @@ class OBJECT_OT_WelderDrawOperator(bpy.types.Operator):
                 return {'CANCELLED'}
             
         except Exception as e:    
+            exc_type, exc_obj, exc_tb = sys.exc_info()
+            print(exc_type,exc_obj, exc_tb.tb_lineno)
             print(e)
             bpy.context.scene.shapemodified=False
             bpy.context.scene.welddrawing=False

@@ -21,6 +21,36 @@ materialOv=None
 debug=False
 curve_node_mapping = {}
 
+def create_curve_from_mouse_path(mouse_path, cyclic=False):
+    """Creates a curve from an array of 3D points."""
+    
+    # Create a new curve object
+    curve_data = bpy.data.curves.new(name="MouseCurve", type='CURVE')
+    curve_data.dimensions = '3D'
+
+    # Create a spline and assign points
+    spline = curve_data.splines.new(type='POLY')
+    spline.points.add(len(mouse_path) - 1)  # The first point is already there
+
+    for i, point in enumerate(mouse_path):
+        spline.points[i].co = (point[0], point[1], point[2], 1)  # 4D (w=1)
+
+    # Set cyclic (closed loop) if required
+    spline.use_cyclic_u = cyclic
+
+    # Create the curve object
+    curve_object = bpy.data.objects.new(name="Weld_Curve", object_data=curve_data)
+
+    # Link to the scene
+    bpy.context.collection.objects.link(curve_object)
+
+    # Set the object as active
+    bpy.context.view_layer.objects.active = curve_object
+    bpy.ops.object.select_all(action='DESELECT')
+    curve_object.select_set(True)
+
+    return curve_object
+
 def WeldNodeTree():
     if 'WeldCurveData' not in bpy.data.node_groups:
         ng = bpy.data.node_groups.new('WeldCurveData', 'ShaderNodeTree')
