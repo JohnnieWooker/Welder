@@ -22,4 +22,4 @@ copyright = [
    "2016-2024 Łukasz Hoffmann"
  ]
 
-platforms = ["windows-x64", "macos-arm64", "linux-x64"]
+platforms = ["windows-x64", "macos-arm64", "macos-x64", "linux-x64"]
