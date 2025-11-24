@@ -1,7 +1,5 @@
 import bpy
 import traceback
-import datetime
-import bgl
 import gpu
 from gpu_extras.batch import batch_for_shader
 import mathutils
@@ -812,9 +810,11 @@ def booleanIntersectors(obj,intersectors):
         boolMod.object=intersector
         #boolMod.operand_type = 'COLLECTION'
         #boolMod.collection=col
+        if bpy.app.version >= (5, 0, 0): SLVR='FLOAT'
+        else: SLVR='FAST'
         if hasattr(boolMod, "use_hole_tolerant"): boolMod.use_hole_tolerant=True
         #if hasattr(boolMod, "solver"): boolMod.solver='EXACT'
-        if hasattr(boolMod, "solver"): boolMod.solver='FAST'
+        if hasattr(boolMod, "solver"): boolMod.solver=SLVR
         #bpy.ops.object.modifier_apply(modifier=boolMod.name)    
     bpy.ops.object.select_all(action='DESELECT')  
     return

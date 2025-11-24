@@ -22,7 +22,7 @@ from . import panel
 bl_info = {
     "name": "Welder",
     "author": "Łukasz Hoffmann",
-    "version": (1,4,9),
+    "version": (1,5,0),
     "location": "View 3D > Object Mode > Tool Shelf",
     "wiki_url": "https://documentation.forgegon.com/Welder",
     "tracker_url": "https://documentation.forgegon.com/Welder",

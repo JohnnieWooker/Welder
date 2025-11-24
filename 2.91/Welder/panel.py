@@ -6,6 +6,18 @@ from bpy.app.handlers import persistent
 from . import parameters
 from . import utils
 
+if bpy.app.version >= (5, 0, 0):
+    SOLVER_ITEMS = [
+        ('FLOAT',    "Float",    "Float solver (Blender 5+)"),
+        ('EXACT',    "Exact",    "Exact solver"),
+        ('MANIFOLD', "Manifold", "Manifold solver"),
+    ]
+else:
+    SOLVER_ITEMS = [
+        ('FAST',  "Fast",  "Fast solver"),
+        ('EXACT', "Exact", "Exact solver"),
+    ]
+
 welder_material_names = []
 
 @persistent
@@ -159,9 +171,8 @@ class WelderPreferences(bpy.types.AddonPreferences):
            ('High quality', "High quality", "High quality")),
     default='Fast')
     solver: EnumProperty(
-    items=(('FAST', "FAST", "FAST"),
-           ('EXACT', "EXACT", "EXACT")),
-    default='FAST')
+    items=SOLVER_ITEMS,
+    default=SOLVER_ITEMS[0][0])
 
     def draw(self, context):
         wm = context.window_manager
